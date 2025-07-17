@@ -1,0 +1,7 @@
+# .env file for API keys
+
+# xAI API Key
+XAI_API_KEY=your_xai_api_key_here
+
+# Stripe Secret Key
+STRIPE_SECRET_KEY=your_stripe_secret_key_here

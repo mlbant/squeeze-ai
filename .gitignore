@@ -1,0 +1,35 @@
+# Security - NEVER upload these!
+.env
+.env.*
+config.yaml
+*.db
+*.sqlite
+secrets.txt/
+*.key
+*.pem
+*.p12
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Streamlit
+.streamlit/
+secrets.toml
+
+# User data
+*_history.csv
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node.js
+node_modules/
+package-lock.json
+
+# IDE
+.vscode/
+.idea/
