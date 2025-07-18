@@ -14,7 +14,7 @@ class StripeHandler:
         self.webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET', '')
     
     def _get_domain_url(self):
-        \"\"\"Get the appropriate domain URL for redirects\"\"\"
+        """Get the appropriate domain URL for redirects"""
         # Check environment variable first
         if os.getenv('ENVIRONMENT') == 'production':
             return 'https://squeeze-ai.com'
