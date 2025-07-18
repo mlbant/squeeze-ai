@@ -4,9 +4,6 @@ import stripe
 import altair as alt
 import pandas as pd
 import random
-import yaml
-from yaml.loader import SafeLoader
-import streamlit_authenticator as stauth
 import csv
 import os
 import smtplib
@@ -18,6 +15,7 @@ import time
 import bcrypt
 import yfinance as yf
 from email_service import email_service
+from postgresql_auth import authenticator
 dotenv.load_dotenv()
 
 # Stripe key (test mode)
@@ -31,20 +29,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Load config for auth
-try:
-    with open('config.yaml') as file:
-        config = yaml.load(file, Loader=SafeLoader)
-except FileNotFoundError:
-    st.error("config.yaml missing! Create it as per instructions.")
-    st.stop()
-
-authenticator = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days']
-)
+# PostgreSQL authentication is now imported from postgresql_auth
+# No need to load config.yaml anymore
 
 # Enhanced dark mode styling
 st.markdown("""
@@ -430,7 +416,7 @@ if not session_data:
         st.session_state.free_search_used = False
 
 # If not authenticated, show login/sign up
-if not st.session_state.get('authentication_status', False):
+if not authenticator.is_authenticated():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.title("Squeeze-Ai.com 🚀")
@@ -448,36 +434,18 @@ if not st.session_state.get('authentication_status', False):
         
         if st.button("Login", type="primary"):
             if login_identifier and login_password:
-                # Find user by username or email
-                found_username = None
+                # Try to authenticate with username first
+                success = authenticator.login(login_identifier, login_password)
                 
-                # Check if it's a direct username match
-                if login_identifier in config['credentials']['usernames']:
-                    found_username = login_identifier
-                else:
-                    # Search by email
-                    for username, user_data in config['credentials']['usernames'].items():
-                        if user_data.get('email', '').lower() == login_identifier.lower():
-                            found_username = username
-                            break
+                if not success:
+                    # Try to find user by email and authenticate with username
+                    user = authenticator.get_user_by_email(login_identifier)
+                    if user:
+                        success = authenticator.login(user.username, login_password)
                 
-                if found_username:
-                    # Verify password
-                    stored_password = config['credentials']['usernames'][found_username]['password']
-                    
-                    if bcrypt.checkpw(login_password.encode('utf-8'), stored_password.encode('utf-8')):
-                        # Successful login
-                        st.session_state.authentication_status = True
-                        st.session_state.name = config['credentials']['usernames'][found_username].get('name', found_username)
-                        st.session_state.username = found_username
-                        
-                        # Save session for persistence
-                        save_session(found_username)
-                        
-                        st.success("Login successful!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Incorrect password. Please try again.")
+                if success:
+                    st.success("Login successful!")
+                    st.rerun()
                 else:
                     st.error("❌ Username or email not found. Please check your credentials.")
             else:
@@ -500,46 +468,22 @@ if not st.session_state.get('authentication_status', False):
                 if forgot_identifier:
                     try:
                         # Find user by username or email
-                        found_username = None
+                        user = authenticator.get_user_by_username(forgot_identifier)
+                        if not user:
+                            user = authenticator.get_user_by_email(forgot_identifier)
                         
-                        # Check if it's a direct username match
-                        if forgot_identifier in config['credentials']['usernames']:
-                            found_username = forgot_identifier
-                        else:
-                            # Search by email
-                            for username, user_data in config['credentials']['usernames'].items():
-                                if user_data.get('email', '').lower() == forgot_identifier.lower():
-                                    found_username = username
-                                    break
-                        
-                        if found_username:
-                            # Generate secure reset token
-                            import random
-                            import string
-                            import time
-                            reset_token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+                        if user:
+                            # Generate reset token
+                            reset_token = authenticator.create_reset_token(user.username)
                             
-                            # Store reset token with expiration (1 hour)
-                            if 'reset_tokens' not in config:
-                                config['reset_tokens'] = {}
-                            config['reset_tokens'][reset_token] = {
-                                'username': found_username,
-                                'expires': time.time() + 3600  # 1 hour from now
-                            }
-                            
-                            # Save config
-                            with open('config.yaml', 'w') as file:
-                                yaml.dump(config, file, default_flow_style=False)
-                            
-                            # Get user details
-                            user_email = config['credentials']['usernames'][found_username]['email']
-                            user_name = config['credentials']['usernames'][found_username].get('name', found_username)
-                            
-                            # Send password reset email
-                            email_sent = email_service.send_password_reset_email(user_email, user_name, reset_token)
-                            
-                            # Always show success message for security (don't reveal if email failed)
-                            st.success("Password reset email sent! If this account exists, you'll receive an email with instructions.")
+                                # Send password reset email
+                                user_name = f"{user.first_name} {user.last_name}".strip() or user.username
+                                email_sent = email_service.send_password_reset_email(user.email, user_name, reset_token)
+                                
+                                # Always show success message for security
+                                st.success("Password reset email sent! If this account exists, you'll receive an email with instructions.")
+                            else:
+                                st.error("❌ Failed to generate reset token. Please try again.")
                         else:
                             # Show generic message to prevent username/email enumeration
                             st.success("Password reset email sent! If this account exists, you'll receive an email with instructions.")
@@ -566,11 +510,8 @@ if not st.session_state.get('authentication_status', False):
             if all([reg_first_name, reg_last_name, reg_email, reg_username, reg_password, reg_confirm_password]):
                 if reg_password == reg_confirm_password:
                     # Check if username or email already exists
-                    username_exists = reg_username in config['credentials']['usernames']
-                    email_exists = any(
-                        user_data.get('email', '').lower() == reg_email.lower() 
-                        for user_data in config['credentials']['usernames'].values()
-                    )
+                    username_exists = authenticator.get_user_by_username(reg_username)
+                    email_exists = authenticator.get_user_by_email(reg_email)
                     
                     if username_exists:
                         st.error("Username already exists. Please choose a different username.")
@@ -578,39 +519,30 @@ if not st.session_state.get('authentication_status', False):
                         st.error("Email already registered. Please use a different email or log in.")
                     else:
                         try:
-                            # Hash the password
-                            hashed_password = bcrypt.hashpw(reg_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                            # Create new user in PostgreSQL
+                            success = authenticator.create_user(
+                                username=reg_username,
+                                email=reg_email,
+                                password=reg_password,
+                                first_name=reg_first_name,
+                                last_name=reg_last_name
+                            )
                             
-                            # Add new user to config
-                            config['credentials']['usernames'][reg_username] = {
-                                'email': reg_email,
-                                'name': f"{reg_first_name} {reg_last_name}",
-                                'password': hashed_password
-                            }
-                            
-                            # Save config
-                            with open('config.yaml', 'w') as file:
-                                yaml.dump(config, file, default_flow_style=False)
-                            
-                            # Automatically log in the user
-                            st.session_state.authentication_status = True
-                            st.session_state.name = f"{reg_first_name} {reg_last_name}"
-                            st.session_state.username = reg_username
-                            
-                            # Save session for persistence
-                            save_session(reg_username)
-                            
-                            # Send welcome email
-                            email_sent = email_service.send_welcome_email(reg_email, reg_username)
-                            
-                            if email_sent:
-                                st.success("✅ Account created successfully! Welcome to Squeeze Ai! Check your email for getting started tips.")
+                            if success:
+                                # Send welcome email
+                                email_sent = email_service.send_welcome_email(reg_email, reg_username)
+                                
+                                if email_sent:
+                                    st.success("✅ Account created successfully! Welcome to Squeeze Ai! Check your email for getting started tips.")
+                                else:
+                                    st.success("✅ Account created successfully! Welcome to Squeeze Ai!")
+                                
+                                # Automatically log in the user
+                                authenticator.login(reg_username, reg_password)
+                                st.rerun()
                             else:
-                                st.success("✅ Account created successfully! Welcome to Squeeze Ai!")
-                                st.warning("⚠️ Welcome email could not be sent. Please check your email settings.")
-                            
-                            st.rerun()
-                            
+                                st.error("❌ Failed to create account. Please try again.")
+                                
                         except Exception as e:
                             st.error(f"Registration failed: {str(e)}")
                 else:
