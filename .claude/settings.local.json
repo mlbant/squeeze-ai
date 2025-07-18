@@ -20,7 +20,9 @@
       "Bash(git push:*)",
       "Bash(railway logs:*)",
       "Bash(nslookup:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "WebFetch(domain:www.whatsmydns.net)",
+      "WebFetch(domain:www.whatsmydns.net)"
     ],
     "deny": []
   }

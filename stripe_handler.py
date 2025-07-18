@@ -26,7 +26,7 @@ class StripeHandler:
                     metadata={'user_id': str(user_id)}
                 )
             
-            # Create checkout session
+            # Create checkout session with 14-day free trial
             session = stripe.checkout.Session.create(
                 customer=customer.id,
                 payment_method_types=['card'],
@@ -35,8 +35,8 @@ class StripeHandler:
                         'currency': 'usd',
                         'product_data': {
                             'name': 'Squeeze Ai Pro',
-                            'description': 'Unlimited squeeze analysis, real-time alerts, and premium features',
-                            'images': ['https://example.com/logo.png'],
+                            'description': 'Unlimited squeeze analysis, real-time alerts, and premium features. 14-day free trial!',
+                            'images': ['https://squeeze-ai.com/logo.png'],
                         },
                         'unit_amount': 2900,  # $29.00
                         'recurring': {
@@ -47,6 +47,12 @@ class StripeHandler:
                     'quantity': 1,
                 }],
                 mode='subscription',
+                subscription_data={
+                    'trial_period_days': 14,  # 14-day free trial
+                    'metadata': {
+                        'user_id': str(user_id)
+                    }
+                },
                 success_url=success_url + '?session_id={CHECKOUT_SESSION_ID}',
                 cancel_url=cancel_url,
                 metadata={
@@ -57,7 +63,7 @@ class StripeHandler:
             return session
             
         except stripe.error.StripeError as e:
-            st.error(f"Payment error: {str(e)}")
+            print(f"Payment error: {str(e)}")
             return None
     
     def create_customer_portal_session(self, user_id):
@@ -77,7 +83,7 @@ class StripeHandler:
             return session
             
         except stripe.error.StripeError as e:
-            st.error(f"Portal error: {str(e)}")
+            print(f"Portal error: {str(e)}")
             return None
     
     def handle_checkout_success(self, session_id):
@@ -101,7 +107,7 @@ class StripeHandler:
             return True
             
         except Exception as e:
-            st.error(f"Error processing payment: {str(e)}")
+            print(f"Error processing payment: {str(e)}")
             return False
     
     def cancel_subscription(self, user_id):
@@ -117,7 +123,7 @@ class StripeHandler:
                 return True
             return False
         except Exception as e:
-            st.error(f"Error canceling subscription: {str(e)}")
+            print(f"Error canceling subscription: {str(e)}")
             return False
     
     def handle_webhook(self, payload, sig_header):

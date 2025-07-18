@@ -16,10 +16,27 @@ import bcrypt
 import yfinance as yf
 from email_service import email_service
 from postgresql_auth import authenticator
+from stripe_handler import StripeHandler
 dotenv.load_dotenv()
 
 # Stripe key (test mode)
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+
+# Initialize Stripe handler
+stripe_handler = StripeHandler()
+
+# Get current domain for URLs
+def get_current_domain():
+    """Get current domain for Stripe URLs"""
+    # Check environment variable first
+    if os.getenv('ENVIRONMENT') == 'production':
+        return 'https://squeeze-ai.com'
+    # Check if we're on Render
+    elif os.getenv('RENDER'):
+        return 'https://squeeze-ai.onrender.com'
+    # Default to localhost for development
+    else:
+        return 'http://localhost:8501'
 
 # Page config
 st.set_page_config(
@@ -898,29 +915,20 @@ else:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                if st.button("🔓 Upgrade to Pro - $29/month", type="primary", key="scan_upgrade"):
+                if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="scan_upgrade"):
                     try:
-                        session = stripe.checkout.Session.create(
-                            payment_method_types=['card'],
-                            line_items=[{
-                                'price_data': {
-                                    'currency': 'usd',
-                                    'product_data': {
-                                        'name': 'Squeeze Ai Pro',
-                                        'description': 'Full access to all squeeze analysis and features'
-                                    },
-                                    'unit_amount': 2900,
-                                    'recurring': {
-                                        'interval': 'month'
-                                    }
-                                },
-                                'quantity': 1
-                            }],
-                            mode='subscription',
-                            success_url="http://localhost:8501?subscribed=true",
-                            cancel_url="http://localhost:8501"
+                        domain = get_current_domain()
+                        session = stripe_handler.create_checkout_session(
+                            user_id=st.session_state.get('user_id', 1),
+                            email=st.session_state.get('email', 'user@example.com'),
+                            success_url=f"{domain}?subscribed=true",
+                            cancel_url=domain
                         )
-                        st.markdown(f"[Complete Payment]({session.url})")
+                        if session:
+                            st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
+                            st.info("✅ 14-day FREE trial - No charge until trial ends!")
+                        else:
+                            st.error("Unable to create checkout session")
                     except Exception as e:
                         st.error(f"Payment setup error: {str(e)}")
                         st.session_state.subscribed = True  # Demo mode
