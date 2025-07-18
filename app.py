@@ -356,14 +356,15 @@ query_params = st.query_params
 
 # Handle successful subscription from Stripe redirect
 if 'subscribed' in query_params and query_params['subscribed'] == 'true':
+    st.session_state.subscribed = True
+    # Save to session if user is logged in
     if 'username' in st.session_state:
-        st.session_state.subscribed = True
         save_session(st.session_state.username)
-        st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
-        st.info("✅ You now have access to all premium features!")
-        # Clear the URL parameter
-        st.query_params.clear()
-        st.rerun()
+    st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
+    st.info("✅ You now have access to all premium features!")
+    # Clear the URL parameter
+    st.query_params.clear()
+    st.rerun()
 
 if 'page' in query_params:
     page = query_params['page']
@@ -887,6 +888,30 @@ else:
                         </p>
                     </div>
                     """, unsafe_allow_html=True)
+                
+                # Always show upgrade button for free users
+                if st.button("🚀 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="always_upgrade_top"):
+                    st.write("DEBUG: Always-visible upgrade button clicked!")  # Debug message
+                    try:
+                        domain = get_current_domain()
+                        st.write(f"DEBUG: Domain = {domain}")  # Debug message
+                        session = stripe_handler.create_checkout_session(
+                            user_id=st.session_state.get('user_id', 1),
+                            email=st.session_state.get('email', 'user@example.com'),
+                            success_url=f"{domain}?subscribed=true",
+                            cancel_url=domain
+                        )
+                        if session:
+                            st.write(f"DEBUG: Session created: {session.id}")  # Debug message
+                            st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
+                            st.info("✅ 14-day FREE trial - No charge until trial ends!")
+                        else:
+                            st.error("Unable to create checkout session")
+                    except Exception as e:
+                        st.error(f"Payment setup error: {str(e)}")
+                        import traceback
+                        st.error(f"Debug traceback: {traceback.format_exc()}")
+                
                 else:
                     st.warning("🔍 **No stocks found with your selected filters**")
                     st.markdown(f"""
