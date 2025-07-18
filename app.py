@@ -409,43 +409,40 @@ query_params = st.query_params
 
 # Handle successful subscription from Stripe redirect
 if 'subscribed' in query_params and query_params['subscribed'] == 'true':
-    # Mark subscription as pending activation
-    subscription_handler.mark_subscription_pending()
-    
-    # Clear URL parameters and redirect to clean URL
-    st.query_params.clear()
-    st.markdown("""
-    <script>
-    window.location.href = window.location.href.split('?')[0];
-    </script>
-    """, unsafe_allow_html=True)
-    
-    st.stop()  # Stop execution here
-
-# Check for pending subscription activation
-if subscription_handler.check_and_activate_subscription():
-    # Force reload session data
-    session_data = load_session()
-    
-    if session_data:
-        # Restore authentication
-        st.session_state.authentication_status = True
-        st.session_state.username = session_data['username']
-        st.session_state.name = session_data.get('name', session_data.get('username', 'User'))
+    # Check if we have a session ID in the URL
+    if 'session_id' in query_params:
+        # Restore session ID
+        st.session_state.session_id = query_params['session_id']
         
-        # Activate subscription
-        st.session_state.subscribed = True
+        # Load session data
+        session_data = load_session()
         
-        # Save updated session
-        save_session(st.session_state.username)
-        
-        st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
-        st.info("✅ You now have access to all premium features!")
-        
-        st.rerun()
+        if session_data:
+            # Restore authentication
+            st.session_state.authentication_status = True
+            st.session_state.authenticated = True
+            st.session_state.username = session_data['username']
+            st.session_state.name = session_data.get('name', session_data.get('username', 'User'))
+            
+            # Activate subscription
+            st.session_state.subscribed = True
+            
+            # Save updated session with subscription status
+            save_session(st.session_state.username)
+            
+            st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
+            st.info("✅ You now have access to all premium features!")
+            
+            # Clear URL parameters but keep session_id
+            st.query_params.clear()
+            st.query_params['session_id'] = st.session_state.session_id
+            
+            time.sleep(2)  # Give user time to see the message
+            st.rerun()
+        else:
+            st.error("Session expired. Please log in again to activate your subscription.")
     else:
-        st.error("Session expired. Please log in again to activate your subscription.")
-        subscription_handler.cleanup_old_activations()
+        st.error("Session lost. Please log in again to activate your subscription.")
 
 if 'page' in query_params:
     page = query_params['page']
@@ -1532,10 +1529,18 @@ else:
             if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="portfolio_upgrade"):
                 try:
                     domain = get_current_domain()
+                    # Get user email
+                    user = authenticator.get_user_by_username(st.session_state.username)
+                    user_email = user.email if user else 'user@example.com'
+                    
+                    # Include session ID in success URL
+                    session_id = st.session_state.get('session_id', '')
+                    success_url = f"{domain}?subscribed=true&session_id={session_id}" if session_id else f"{domain}?subscribed=true"
+                    
                     session = stripe_handler.create_checkout_session(
                         user_id=st.session_state.get('user_id', 1),
-                        email=st.session_state.get('email', 'user@example.com'),
-                        success_url=f"{domain}?subscribed=true",
+                        email=user_email,
+                        success_url=success_url,
                         cancel_url=domain
                     )
                     if session:
@@ -2233,10 +2238,18 @@ else:
                 if st.button("Upgrade to Pro - $29/month (14-day FREE trial)", type="primary"):
                     try:
                         domain = get_current_domain()
+                        # Get user email
+                        user = authenticator.get_user_by_username(st.session_state.username)
+                        user_email = user.email if user else 'user@example.com'
+                        
+                        # Include session ID in success URL
+                        session_id = st.session_state.get('session_id', '')
+                        success_url = f"{domain}?subscribed=true&session_id={session_id}" if session_id else f"{domain}?subscribed=true"
+                        
                         session = stripe_handler.create_checkout_session(
                             user_id=st.session_state.get('user_id', 1),
-                            email=st.session_state.get('email', 'user@example.com'),
-                            success_url=f"{domain}?subscribed=true",
+                            email=user_email,
+                            success_url=success_url,
                             cancel_url=domain
                         )
                         if session:
