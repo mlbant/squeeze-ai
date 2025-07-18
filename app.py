@@ -356,12 +356,33 @@ query_params = st.query_params
 
 # Handle successful subscription from Stripe redirect
 if 'subscribed' in query_params and query_params['subscribed'] == 'true':
-    st.session_state.subscribed = True
-    # Save to session if user is logged in
-    if 'username' in st.session_state:
+    st.write("DEBUG: Subscription redirect detected!")
+    
+    # Force reload session data to ensure user is properly authenticated
+    session_data = load_session()
+    st.write(f"DEBUG: Session data loaded: {session_data is not None}")
+    
+    if session_data:
+        st.write(f"DEBUG: Restoring session for user: {session_data['username']}")
+        
+        # Restore authentication
+        st.session_state.authentication_status = True
+        st.session_state.username = session_data['username']
+        st.session_state.name = session_data.get('name', session_data.get('username', 'User'))
+        
+        # Activate subscription
+        st.session_state.subscribed = True
+        
+        # Save updated session
         save_session(st.session_state.username)
-    st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
-    st.info("✅ You now have access to all premium features!")
+        
+        st.write("DEBUG: Session saved with subscription activated")
+        st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
+        st.info("✅ You now have access to all premium features!")
+    else:
+        st.write("DEBUG: No session data found")
+        st.error("Session expired. Please log in again to activate your subscription.")
+    
     # Clear the URL parameter
     st.query_params.clear()
     st.rerun()
