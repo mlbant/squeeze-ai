@@ -295,18 +295,29 @@ def load_session():
     """Load session from file"""
     try:
         session_file = get_session_file_path()
+        print(f"DEBUG: Looking for session file: {session_file}")
         if os.path.exists(session_file):
+            print(f"DEBUG: Session file exists")
             with open(session_file, 'r') as f:
                 session_data = json.load(f)
                 
+            print(f"DEBUG: Session data loaded: {session_data}")
             # Check if session is still valid (within 24 hours)
             if time.time() - session_data.get('timestamp', 0) < 86400:
                 username = session_data.get('username')
+                print(f"DEBUG: Checking user exists: {username}")
                 # Check if user exists in PostgreSQL
                 if authenticator.get_user_by_username(username):
+                    print(f"DEBUG: User exists, returning session data")
                     return session_data
-    except:
-        pass
+                else:
+                    print(f"DEBUG: User not found in database")
+            else:
+                print(f"DEBUG: Session expired")
+        else:
+            print(f"DEBUG: Session file does not exist")
+    except Exception as e:
+        print(f"DEBUG: Error loading session: {e}")
     return None
 
 def clear_session():
@@ -328,8 +339,6 @@ if session_data:
         st.session_state.username = session_data['username']
         st.session_state.name = session_data.get('name', session_data.get('username', 'User'))
         st.write(f"DEBUG: Restored session for user: {session_data['username']}")
-else:
-    st.write("DEBUG: No session data found - user will need to log in")
     
     # Always restore subscription status if available
     if 'subscribed' not in st.session_state:
@@ -346,6 +355,11 @@ else:
         st.session_state.last_analysis_result = session_data.get('last_analysis_result', None)
     if 'last_analysis_ticker' not in st.session_state:
         st.session_state.last_analysis_ticker = session_data.get('last_analysis_ticker', None)
+else:
+    st.write("DEBUG: No session data found - user will need to log in")
+    # Initialize default values when no session exists
+    if 'subscribed' not in st.session_state:
+        st.session_state.subscribed = False
     if 'last_analysis_period' not in st.session_state:
         st.session_state.last_analysis_period = session_data.get('last_analysis_period', None)
     # Always load free usage limits from session file to ensure persistence
