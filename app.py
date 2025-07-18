@@ -30,7 +30,7 @@ st.set_page_config(
 )
 
 # PostgreSQL authentication is now imported from postgresql_auth
-# No need to load config.yaml anymore
+# No need to load config.yaml anymore - using persistent database
 
 # Enhanced dark mode styling
 st.markdown("""
