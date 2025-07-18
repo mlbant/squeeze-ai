@@ -165,32 +165,98 @@ def apply_daily_variation(base_score, daily_variation):
     varied_score = base_score + daily_variation
     return max(0, min(100, int(varied_score)))
 
+def get_realistic_short_data(ticker, base_score):
+    """Get more realistic short interest data based on known patterns"""
+    # Known high short interest stocks with more realistic ranges
+    high_short_stocks = {
+        "GME": {"short_percent": 22.5, "borrow_fee": 8.2, "days_to_cover": 4.1},
+        "AMC": {"short_percent": 18.7, "borrow_fee": 6.8, "days_to_cover": 3.2},
+        "BBBY": {"short_percent": 31.2, "borrow_fee": 12.5, "days_to_cover": 5.8},
+        "TSLA": {"short_percent": 3.1, "borrow_fee": 0.8, "days_to_cover": 1.2},
+        "NVDA": {"short_percent": 2.8, "borrow_fee": 0.6, "days_to_cover": 0.9},
+        "AAPL": {"short_percent": 1.2, "borrow_fee": 0.3, "days_to_cover": 0.5},
+        "MSFT": {"short_percent": 1.5, "borrow_fee": 0.4, "days_to_cover": 0.6},
+        "SAVA": {"short_percent": 28.4, "borrow_fee": 15.7, "days_to_cover": 6.3},
+        "SPCE": {"short_percent": 24.1, "borrow_fee": 11.2, "days_to_cover": 4.7},
+        "ATER": {"short_percent": 19.8, "borrow_fee": 9.4, "days_to_cover": 3.8},
+    }
+    
+    if ticker in high_short_stocks:
+        return high_short_stocks[ticker]
+    
+    # For other stocks, use more realistic calculations based on typical market patterns
+    if base_score >= 70:  # High squeeze potential
+        short_percent = 15 + (base_score - 70) * 0.8  # 15-39%
+        borrow_fee = 5 + (base_score - 70) * 0.4      # 5-17%
+        days_to_cover = 2 + (base_score - 70) * 0.2   # 2-8 days
+    elif base_score >= 50:  # Medium squeeze potential
+        short_percent = 8 + (base_score - 50) * 0.35  # 8-15%
+        borrow_fee = 2 + (base_score - 50) * 0.15     # 2-5%
+        days_to_cover = 1 + (base_score - 50) * 0.05  # 1-2 days
+    else:  # Low squeeze potential
+        short_percent = 2 + base_score * 0.12          # 2-8%
+        borrow_fee = 0.5 + base_score * 0.03          # 0.5-2%
+        days_to_cover = 0.5 + base_score * 0.01       # 0.5-1 days
+    
+    return {
+        "short_percent": round(short_percent, 1),
+        "borrow_fee": round(borrow_fee, 1),
+        "days_to_cover": round(days_to_cover, 1)
+    }
+
 def get_stock_details(ticker, stock_data, daily_variation):
-    """Get detailed stock information with daily variation"""
+    """Get detailed stock information with daily variation and realistic short data"""
     info = stock_data[ticker]
     current_score = apply_daily_variation(info["base_score"], daily_variation)
     
-    # Calculate metrics based on score
-    short_percent = max(5, min(35, current_score * 0.4))
-    borrow_fee = max(1, min(20, current_score * 0.2))
-    days_to_cover = max(1, min(10, current_score * 0.1))
+    # Get realistic short interest data
+    short_data = get_realistic_short_data(ticker, current_score)
     
-    # Generate why based on sector and score
+    # Generate why based on sector and score with more specific catalysts
     why_templates = {
-        "Tech": f"Technology sector momentum with {short_percent:.1f}% short interest",
-        "Biotech": f"Biotech catalyst potential with elevated short coverage",
-        "Retail": f"Retail sector squeeze setup with high short interest",
-        "Energy": f"Energy sector volatility with moderate short pressure",
-        "Finance": f"Financial sector stability with low short interest"
+        "Tech": [
+            f"Strong technical momentum with {short_data['short_percent']}% short interest creating squeeze setup",
+            f"AI/tech sector rotation driving institutional interest amid {short_data['short_percent']}% short coverage",
+            f"Earnings catalyst approaching with elevated short interest at {short_data['short_percent']}%",
+            f"Options flow indicating bullish sentiment against {short_data['short_percent']}% short position"
+        ],
+        "Biotech": [
+            f"FDA approval catalyst pending with {short_data['short_percent']}% short interest vulnerable",
+            f"Clinical trial results expected, shorts at {short_data['short_percent']}% may face pressure",
+            f"Partnership rumors circulating with high short coverage at {short_data['short_percent']}%",
+            f"Biotech sector momentum building against {short_data['short_percent']}% short interest"
+        ],
+        "Retail": [
+            f"Meme stock momentum returning with {short_data['short_percent']}% short interest exposed",
+            f"Social media buzz increasing, shorts at {short_data['short_percent']}% under pressure",
+            f"Retail investor coordination targeting {short_data['short_percent']}% short position",
+            f"Turnaround story gaining traction against {short_data['short_percent']}% short coverage"
+        ],
+        "Energy": [
+            f"Oil price momentum supporting sector with {short_data['short_percent']}% short exposure",
+            f"Energy transition play with shorts at {short_data['short_percent']}% potentially squeezed",
+            f"Commodity cycle turning favorable against {short_data['short_percent']}% short interest",
+            f"Dividend yield attracting buyers vs {short_data['short_percent']}% short position"
+        ],
+        "Finance": [
+            f"Interest rate environment favorable with {short_data['short_percent']}% short coverage",
+            f"Banking sector rotation creating pressure on {short_data['short_percent']}% short interest",
+            f"Credit cycle improving, shorts at {short_data['short_percent']}% may cover",
+            f"Regulatory clarity emerging against {short_data['short_percent']}% short position"
+        ]
     }
+    
+    # Select catalyst based on score for variety
+    catalysts = why_templates.get(info["sector"], [f"Market dynamics with {short_data['short_percent']}% short interest"])
+    catalyst_index = (current_score + hash(ticker)) % len(catalysts)
     
     return {
         "ticker": ticker,
         "score": current_score,
-        "short_percent": round(short_percent, 1),
-        "borrow_fee": round(borrow_fee, 1),
-        "days_to_cover": round(days_to_cover, 1),
-        "why": why_templates.get(info["sector"], f"Market dynamics with {short_percent:.1f}% short interest"),
+        "short_percent": short_data["short_percent"],
+        "borrow_fee": short_data["borrow_fee"],
+        "days_to_cover": short_data["days_to_cover"],
+        "why": catalysts[catalyst_index],
         "sector": info["sector"],
         "market_cap": info["market_cap"],
         "volatility": info["volatility"]
