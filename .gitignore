@@ -1,7 +1,6 @@
 # Security - NEVER upload these!
 .env
 .env.*
-config.yaml
 *.db
 *.sqlite
 secrets.txt/
