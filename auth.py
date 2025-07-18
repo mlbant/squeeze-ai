@@ -129,9 +129,9 @@ class Authentication:
         # In production, use proper email service
         verification_link = f"http://localhost:8501/?verify={token}"
         
-        subject = "Verify your Squeeze AI account"
+        subject = "Verify your Squeeze Ai account"
         body = f"""
-        Welcome to Squeeze AI!
+        Welcome to Squeeze Ai!
         
         Please verify your email address by clicking the link below:
         {verification_link}
@@ -139,7 +139,7 @@ class Authentication:
         This link will expire in 24 hours.
         
         Best regards,
-        Squeeze AI Team
+        Squeeze Ai Team
         """
         
         # Send email (implement with your SMTP settings)
@@ -149,9 +149,9 @@ class Authentication:
         """Send password reset email"""
         reset_link = f"http://localhost:8501/?reset={token}"
         
-        subject = "Reset your Squeeze AI password"
+        subject = "Reset your Squeeze Ai password"
         body = f"""
-        You requested a password reset for your Squeeze AI account.
+        You requested a password reset for your Squeeze Ai account.
         
         Click the link below to reset your password:
         {reset_link}
@@ -161,7 +161,7 @@ class Authentication:
         If you didn't request this, please ignore this email.
         
         Best regards,
-        Squeeze AI Team
+        Squeeze Ai Team
         """
         
         # Send email (implement with your SMTP settings)

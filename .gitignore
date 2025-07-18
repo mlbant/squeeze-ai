@@ -8,6 +8,8 @@ secrets.txt/
 *.key
 *.pem
 *.p12
+KEEP_THIS_LOCAL_ONLY.txt
+*_LOCAL_ONLY*
 
 # Python
 __pycache__/

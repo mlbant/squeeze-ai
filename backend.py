@@ -109,6 +109,89 @@ def get_real_volatility(ticker):
     else:
         return "Medium"
 
+def get_float_size(ticker):
+    """Get float size information"""
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        
+        float_shares = info.get('floatShares', info.get('sharesOutstanding', 0))
+        if float_shares:
+            float_millions = float_shares / 1_000_000
+            if float_millions < 50:
+                return "Low"
+            elif float_millions < 200:
+                return "Medium"
+            else:
+                return "High"
+    except:
+        pass
+    
+    # Default based on known stocks
+    low_float = ["GME", "AMC", "BBBY", "PROG", "SAVA", "ATER", "SPCE"]
+    high_float = ["AAPL", "MSFT", "TSLA", "NVDA"]
+    
+    if ticker in low_float:
+        return "Low"
+    elif ticker in high_float:
+        return "High"
+    else:
+        return "Medium"
+
+def get_volume_status(ticker):
+    """Check if current volume is high compared to average"""
+    try:
+        stock = yf.Ticker(ticker)
+        hist = stock.history(period="1mo")
+        
+        if len(hist) > 10:
+            recent_volume = hist['Volume'].iloc[-1]
+            avg_volume = hist['Volume'].mean()
+            
+            if recent_volume > avg_volume * 1.5:  # 50% above average
+                return "High"
+            elif recent_volume > avg_volume * 1.2:  # 20% above average
+                return "Medium"
+            else:
+                return "Low"
+    except:
+        pass
+    
+    # Default based on known patterns
+    high_volume = ["GME", "AMC", "TSLA", "NVDA", "AAPL"]
+    if ticker in high_volume:
+        return "High"
+    else:
+        return "Medium"
+
+def get_recent_momentum(ticker):
+    """Check for recent price momentum"""
+    try:
+        stock = yf.Ticker(ticker)
+        hist = stock.history(period="1mo")
+        
+        if len(hist) > 10:
+            # Calculate 5-day and 1-day returns
+            current_price = hist['Close'].iloc[-1]
+            price_5d_ago = hist['Close'].iloc[-6] if len(hist) >= 6 else hist['Close'].iloc[0]
+            price_1d_ago = hist['Close'].iloc[-2] if len(hist) >= 2 else hist['Close'].iloc[0]
+            
+            momentum_5d = (current_price - price_5d_ago) / price_5d_ago
+            momentum_1d = (current_price - price_1d_ago) / price_1d_ago
+            
+            # Positive momentum if up >5% in 5 days or >2% in 1 day
+            if momentum_5d > 0.05 or momentum_1d > 0.02:
+                return "High"
+            elif momentum_5d > 0.02 or momentum_1d > 0.01:
+                return "Medium"
+            else:
+                return "Low"
+    except:
+        pass
+    
+    # Default based on recent patterns
+    return "Medium"
+
 def get_stock_database():
     """Complete stock database with real-time data"""
     daily_variation = get_daily_score_variation()
@@ -153,10 +236,13 @@ def get_stock_database():
         "MULN": {"sector": "Tech", "base_score": 70},
     }
     
-    # Add real-time market cap and volatility
+    # Add real-time market cap and all filter data
     for ticker, data in stocks.items():
         data["market_cap"] = get_real_market_cap(ticker)
         data["volatility"] = get_real_volatility(ticker)
+        data["float_size"] = get_float_size(ticker)
+        data["volume_status"] = get_volume_status(ticker)
+        data["momentum"] = get_recent_momentum(ticker)
     
     return stocks
 
@@ -216,7 +302,7 @@ def get_stock_details(ticker, stock_data, daily_variation):
     why_templates = {
         "Tech": [
             f"Strong technical momentum with {short_data['short_percent']}% short interest creating squeeze setup",
-            f"AI/tech sector rotation driving institutional interest amid {short_data['short_percent']}% short coverage",
+            f"Ai/tech sector rotation driving institutional interest amid {short_data['short_percent']}% short coverage",
             f"Earnings catalyst approaching with elevated short interest at {short_data['short_percent']}%",
             f"Options flow indicating bullish sentiment against {short_data['short_percent']}% short position"
         ],
@@ -259,7 +345,10 @@ def get_stock_details(ticker, stock_data, daily_variation):
         "why": catalysts[catalyst_index],
         "sector": info["sector"],
         "market_cap": info["market_cap"],
-        "volatility": info["volatility"]
+        "volatility": info["volatility"],
+        "float_size": info["float_size"],
+        "volume_status": info["volume_status"],
+        "momentum": info["momentum"]
     }
 
 def get_consistent_stock_data():
@@ -312,9 +401,29 @@ def get_squeeze_stocks(filters=None):
         elif "Market Cap: Large (>$10B)" in filters:
             filtered_stocks = [s for s in filtered_stocks if s['market_cap'] == 'Large']
         
-        # High volatility filter
+        # Short interest filters
+        if "Short Interest: High (>20%)" in filters:
+            filtered_stocks = [s for s in filtered_stocks if s['short_percent'] > 20]
+        elif "Short Interest: Very High (>30%)" in filters:
+            filtered_stocks = [s for s in filtered_stocks if s['short_percent'] > 30]
+        elif "Short Interest: Extreme (>40%)" in filters:
+            filtered_stocks = [s for s in filtered_stocks if s['short_percent'] > 40]
+        
+        # Advanced filters
         if "High Volatility" in filters:
             filtered_stocks = [s for s in filtered_stocks if s['volatility'] == 'High']
+        
+        if "High Borrow Fee" in filters:
+            filtered_stocks = [s for s in filtered_stocks if s['borrow_fee'] > 5]
+        
+        if "Recent Momentum" in filters:
+            filtered_stocks = [s for s in filtered_stocks if s['momentum'] == 'High']
+        
+        if "Low Float" in filters:
+            filtered_stocks = [s for s in filtered_stocks if s['float_size'] == 'Low']
+        
+        if "High Volume" in filters:
+            filtered_stocks = [s for s in filtered_stocks if s['volume_status'] == 'High']
     
     # Sort by score and return top 5
     filtered_stocks.sort(key=lambda x: x['score'], reverse=True)
@@ -420,13 +529,33 @@ def get_fallback_stocks():
 
 def get_fallback_single_score(ticker):
     """Fallback score for single ticker if API fails"""
+    # First, validate if ticker exists using yfinance
+    try:
+        stock = yf.Ticker(ticker)
+        # Try to get basic info to validate ticker
+        info = stock.info
+        
+        # Check if ticker is valid (has basic info)
+        if info and 'symbol' in info:
+            return {
+                "ticker": ticker.upper(),
+                "score": 58,
+                "short_percent": 15.5,
+                "borrow_fee": 6.2,
+                "days_to_cover": 2.8,
+                "why": "Moderate squeeze potential based on estimated data"
+            }
+    except:
+        pass
+    
+    # If ticker validation fails, return error indicator
     return {
         "ticker": ticker.upper(),
-        "score": 58,
-        "short_percent": 15.5,
-        "borrow_fee": 6.2,
-        "days_to_cover": 2.8,
-        "why": "Moderate squeeze potential"
+        "score": "ERROR",
+        "short_percent": "N/A",
+        "borrow_fee": "N/A",
+        "days_to_cover": "N/A",
+        "why": "Invalid ticker symbol"
     }
 
 # Test functions

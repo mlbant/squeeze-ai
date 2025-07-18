@@ -1,0 +1,70 @@
+cookie:
+  expiry_days: 30
+  key: random_signature_key_12345
+  name: squeeze_ai_cookie
+credentials:
+  usernames:
+    mlbant:
+      email: acusumano618@gmail.com
+      failed_login_attempts: 0
+      first_name: Anthony
+      last_name: Cusumano
+      logged_in: false
+      password: $2b$12$6qRHZrg.xyLAO0r4iV4LyeQscvk3559mLlDtKXxgBj6pBmAZ/DG92
+      roles: null
+    mlbant13:
+      email: acusumano618@googlemail.com
+      failed_login_attempts: 0
+      first_name: Anthony
+      last_name: Cusumano
+      logged_in: true
+      password: $2b$12$wmYZLkGqv97r75VdPrNElO4YDESLGA9hbMoTliV0aLztNscpaMjZ.
+      roles: null
+    test:
+      email: test@gmail.com
+      failed_login_attempts: 0
+      name: test test
+      password: $2b$12$JXKLPu57nfr/0Iy/H8kNyeRbpGn9.nKvHwh/0zYtumcn0Vr11EDre
+    test5:
+      email: test@yopmail.com
+      failed_login_attempts: 0
+      name: test test
+      password: $2b$12$0XPXRAj9kkePc5upBsBP7O.JlArNemHcDkS4KK5tGb6KQFBDGNWpy
+    testuser:
+      email: test@example.com
+      failed_login_attempts: 0
+      name: Test User
+      password: $2b$12$hgNimosNmoarT1u0nqVLPOp0JBdh8VqUYvQVcPWVqp.HOuVO5w.H2
+preauthorized:
+  emails: []
+reset_tokens:
+  L3uGdtb4DKyf0ajFuZ1eghb578JH3mUD:
+    expires: 1752807263.3784194
+    username: mlbant
+  NS0yrwLRhhhThVNJYz8aQjwX40WrBeqs:
+    expires: 1752807394.428668
+    username: mlbant
+  OTTLusZRZVdoUDVBvAgqnQ2V2TRLOK6c:
+    expires: 1752807140.0713227
+    username: mlbant
+  QSekoo43XTeBiZYMdj5JbhG0USyUhia4:
+    expires: 1752807257.879306
+    username: mlbant
+  TimxnbaEm5FSOC9ZnyPU48vVh6e6jp5Q:
+    expires: 1752807192.1750667
+    username: mlbant
+  WmXO389MAfw7qB9yNcErlNj1ScMC67BG:
+    expires: 1752807007.9359832
+    username: mlbant
+  e1AAnRJzqBpSS51eZbVDkutyaaBhvdzY:
+    expires: 1752807115.2183192
+    username: mlbant
+  jbYAAYSM8HeNUpna0YijiAcikyuNqRUc:
+    expires: 1752807689.8486
+    username: mlbant
+  xRt4qQwAbLa4z2SKLgpcg2gPcYJrxTP6:
+    expires: 1752806994.7499971
+    username: mlbant
+  zMvyT9vzD6MSloJGFkcmHhaaJMsgXlwP:
+    expires: 1752806979.2650757
+    username: mlbant

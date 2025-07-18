@@ -11,11 +11,13 @@ import csv
 import os
 import smtplib
 from email.mime.text import MIMEText
-from datetime import datetime
+from datetime import datetime, timedelta
 import dotenv
 import hashlib
 import time
 import bcrypt
+import yfinance as yf
+from email_service import email_service
 dotenv.load_dotenv()
 
 # Stripe key (test mode)
@@ -23,7 +25,7 @@ stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 
 # Page config
 st.set_page_config(
-    page_title="Squeeze AI - Stock Squeeze Analysis", 
+    page_title="Squeeze Ai - Stock Squeeze Analysis", 
     page_icon="🚀", 
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -127,6 +129,27 @@ st.markdown("""
         margin: 0 auto !important;
         display: block !important;
     }
+    /* Delete button styling */
+    .delete-button > button {
+        background-color: #dc2626 !important;
+        color: #ffffff !important;
+        border: 1px solid #dc2626 !important;
+        border-radius: 8px !important;
+        padding: 0.5rem 1.5rem !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+    }
+    .delete-button > button:hover {
+        background-color: #b91c1c !important;
+        border-color: #b91c1c !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 5px 15px rgba(220, 38, 38, 0.3) !important;
+    }
+    .delete-button > button:focus {
+        background-color: #b91c1c !important;
+        border-color: #b91c1c !important;
+        box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -219,12 +242,199 @@ except:
     # Fallback if fingerprinting fails
     st.session_state.browser_fingerprint = "fallback"
 
-# Show login/sign up if not logged in
-if "authentication_status" not in st.session_state or not st.session_state.authentication_status:
+# Initialize session state for authentication if not already set
+if "authentication_status" not in st.session_state:
+    st.session_state.authentication_status = False
+if "name" not in st.session_state:
+    st.session_state.name = None
+if "username" not in st.session_state:
+    st.session_state.username = None
+
+# Simple session persistence using file-based storage
+# This avoids complex cookie/JS issues and provides reliable session management
+import tempfile
+import json
+import time
+
+def get_session_file_path():
+    """Get the path for the session file - use a simple approach that works across refreshes"""
+    # Use a simple file that persists across browser sessions
+    # This approach stores the last logged in user session
+    return os.path.join(tempfile.gettempdir(), "squeeze_ai_last_session.json")
+
+def save_session(username):
+    """Save session to file"""
+    try:
+        session_data = {
+            'username': username,
+            'timestamp': time.time(),
+            'name': config['credentials']['usernames'][username].get('name', username),
+            'subscribed': st.session_state.get('subscribed', False),
+            'last_scan_results': st.session_state.get('last_scan_results', None),
+            'last_scan_filters': st.session_state.get('last_scan_filters', None),
+            'last_analysis_result': st.session_state.get('last_analysis_result', None),
+            'last_analysis_ticker': st.session_state.get('last_analysis_ticker', None),
+            'last_analysis_period': st.session_state.get('last_analysis_period', None),
+            'free_scan_used': st.session_state.get('free_scan_used', False),
+            'free_search_used': st.session_state.get('free_search_used', False),
+            'portfolio_holdings': st.session_state.get('portfolio_holdings', [])
+        }
+        with open(get_session_file_path(), 'w') as f:
+            json.dump(session_data, f)
+    except:
+        pass
+
+def load_session():
+    """Load session from file"""
+    try:
+        session_file = get_session_file_path()
+        if os.path.exists(session_file):
+            with open(session_file, 'r') as f:
+                session_data = json.load(f)
+                
+            # Check if session is still valid (within 24 hours)
+            if time.time() - session_data.get('timestamp', 0) < 86400:
+                username = session_data.get('username')
+                if username in config['credentials']['usernames']:
+                    return session_data
+    except:
+        pass
+    return None
+
+def clear_session():
+    """Clear session file"""
+    try:
+        session_file = get_session_file_path()
+        if os.path.exists(session_file):
+            os.remove(session_file)
+    except:
+        pass
+
+# Check for existing session on page load (always check for persistence)
+session_data = load_session()
+if session_data:
+    if not st.session_state.get('authentication_status', False):
+        st.session_state.authentication_status = True
+        st.session_state.username = session_data['username']
+        st.session_state.name = session_data.get('name', session_data.get('username', 'User'))
+    
+    # Always restore subscription status if available
+    if 'subscribed' not in st.session_state:
+        st.session_state.subscribed = session_data.get('subscribed', False)
+        # Debug: Show subscription status restoration
+        if session_data.get('subscribed'):
+            st.sidebar.success("🚀 Pro subscription restored from session!")
+    
+    # Restore scan and analysis results
+    if 'last_scan_results' not in st.session_state:
+        st.session_state.last_scan_results = session_data.get('last_scan_results', None)
+    if 'last_scan_filters' not in st.session_state:
+        st.session_state.last_scan_filters = session_data.get('last_scan_filters', None)
+    if 'last_analysis_result' not in st.session_state:
+        st.session_state.last_analysis_result = session_data.get('last_analysis_result', None)
+    if 'last_analysis_ticker' not in st.session_state:
+        st.session_state.last_analysis_ticker = session_data.get('last_analysis_ticker', None)
+    if 'last_analysis_period' not in st.session_state:
+        st.session_state.last_analysis_period = session_data.get('last_analysis_period', None)
+    # Always load free usage limits from session file to ensure persistence
+    st.session_state.free_scan_used = session_data.get('free_scan_used', False)
+    st.session_state.free_search_used = session_data.get('free_search_used', False)
+    
+    # Restore portfolio holdings
+    if 'portfolio_holdings' not in st.session_state:
+        st.session_state.portfolio_holdings = session_data.get('portfolio_holdings', [])
+
+# Initialize subscribed status if not set by session loading
+if 'subscribed' not in st.session_state:
+    st.session_state.subscribed = False
+
+# Check for URL parameters for navigation
+query_params = st.query_params
+if 'page' in query_params:
+    page = query_params['page']
+    if page == 'terms':
+        st.query_params.clear()
+        st.switch_page("pages/TERMS.py")
+    elif page == 'privacy':
+        st.query_params.clear()
+        st.switch_page("pages/PRIVACY.py")
+    elif page == 'contact':
+        st.query_params.clear()
+        st.switch_page("pages/CONTACT.py")
+
+# Check for password reset token in URL parameters
+if 'reset_token' in query_params:
+    reset_token = query_params['reset_token']
+    
+    # Check if token is valid and not expired
+    if 'reset_tokens' in config and reset_token in config['reset_tokens']:
+        token_data = config['reset_tokens'][reset_token]
+        
+        if time.time() < token_data['expires']:
+            # Token is valid, show password reset form
+            st.markdown("## Reset Your Password")
+            st.markdown("Enter your new password below:")
+            
+            with st.form("reset_password_form"):
+                new_password = st.text_input("New Password", type="password")
+                confirm_password = st.text_input("Confirm New Password", type="password")
+                
+                if st.form_submit_button("Reset Password"):
+                    if new_password and confirm_password:
+                        if new_password == confirm_password:
+                            if len(new_password) >= 6:
+                                # Hash and save new password
+                                hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                                config['credentials']['usernames'][token_data['username']]['password'] = hashed_password
+                                
+                                # Remove the used token
+                                del config['reset_tokens'][reset_token]
+                                
+                                # Save config
+                                with open('config.yaml', 'w') as file:
+                                    yaml.dump(config, file, default_flow_style=False)
+                                
+                                st.success("✅ Password reset successfully! You can now log in with your new password.")
+                                st.info("Redirecting to login page...")
+                                time.sleep(2)
+                                st.query_params.clear()
+                                st.rerun()
+                            else:
+                                st.error("Password must be at least 6 characters long.")
+                        else:
+                            st.error("Passwords don't match.")
+                    else:
+                        st.error("Please fill in both password fields.")
+            
+            st.stop()  # Don't show the rest of the app
+        else:
+            # Token expired
+            st.error("❌ This password reset link has expired. Please request a new one.")
+            if st.button("Request New Reset Link"):
+                st.query_params.clear()
+                st.rerun()
+            st.stop()
+    else:
+        # Invalid token
+        st.error("❌ Invalid password reset link. Please request a new one.")
+        if st.button("Request New Reset Link"):
+            st.query_params.clear()
+            st.rerun()
+        st.stop()
+
+# Initialize free usage limits if not set by session loading (only when no session data exists)
+if not session_data:
+    if 'free_scan_used' not in st.session_state:
+        st.session_state.free_scan_used = False
+    if 'free_search_used' not in st.session_state:
+        st.session_state.free_search_used = False
+
+# If not authenticated, show login/sign up
+if not st.session_state.get('authentication_status', False):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.title("🚀 Squeeze AI")
-        st.markdown("### AI-Powered Short Squeeze Analysis")
+        st.title("Squeeze-Ai.com 🚀")
+        st.markdown("### Ai Powered Short Squeeze Tool")
         st.markdown("Identify high-potential squeeze opportunities with advanced metrics")
         
     tab_login, tab_signup, tab_guest = st.tabs(["Login", "Sign Up", "Try as Guest"])
@@ -258,43 +468,85 @@ if "authentication_status" not in st.session_state or not st.session_state.authe
                     if bcrypt.checkpw(login_password.encode('utf-8'), stored_password.encode('utf-8')):
                         # Successful login
                         st.session_state.authentication_status = True
-                        st.session_state.name = config['credentials']['usernames'][found_username]['name']
+                        st.session_state.name = config['credentials']['usernames'][found_username].get('name', found_username)
                         st.session_state.username = found_username
+                        
+                        # Save session for persistence
+                        save_session(found_username)
+                        
                         st.success("Login successful!")
                         st.rerun()
                     else:
-                        st.error("Incorrect password")
+                        st.error("❌ Incorrect password. Please try again.")
                 else:
-                    st.error("Username or email not found")
+                    st.error("❌ Username or email not found. Please check your credentials.")
             else:
                 st.error("Please enter both username/email and password")
 
+        # Initialize forgot password state
+        if 'show_forgot_password' not in st.session_state:
+            st.session_state.show_forgot_password = False
+        
         if st.button("Forgot Password?"):
-            forgot_username = st.text_input("Enter your username")
-            if forgot_username:
-                try:
-                    random_password = authenticator.forgot_password(forgot_username)
-                    if random_password:
-                        # Email configuration
-                        sender_email = "acusumano618@gmail.com"  # Replace
-                        sender_password = "rrou qocy zmff naie"   # Replace
+            st.session_state.show_forgot_password = True
+            st.rerun()
+        
+        if st.session_state.show_forgot_password:
+            st.markdown("---")
+            st.markdown("### Reset Your Password")
+            forgot_identifier = st.text_input("Enter your username or email", placeholder="Username or email address")
+            
+            if st.button("Send Password Reset Link", type="primary"):
+                if forgot_identifier:
+                    try:
+                        # Find user by username or email
+                        found_username = None
                         
-                        msg = MIMEText(f"Your temporary password is: {random_password}\n\nPlease log in and change it immediately.")
-                        msg['Subject'] = "Squeeze AI Password Reset"
-                        msg['From'] = sender_email
-                        msg['To'] = config['credentials']['usernames'][forgot_username]['email']
-
-                        try:
-                            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-                                server.login(sender_email, sender_password)
-                                server.sendmail(sender_email, msg['To'], msg.as_string())
-                            st.success("Temporary password sent to your email!")
-                        except Exception as e:
-                            st.error(f"Email failed. Temporary password: {random_password}")
-                    else:
-                        st.error("Username not found")
-                except:
-                    st.error("Username not found")
+                        # Check if it's a direct username match
+                        if forgot_identifier in config['credentials']['usernames']:
+                            found_username = forgot_identifier
+                        else:
+                            # Search by email
+                            for username, user_data in config['credentials']['usernames'].items():
+                                if user_data.get('email', '').lower() == forgot_identifier.lower():
+                                    found_username = username
+                                    break
+                        
+                        if found_username:
+                            # Generate secure reset token
+                            import random
+                            import string
+                            import time
+                            reset_token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+                            
+                            # Store reset token with expiration (1 hour)
+                            if 'reset_tokens' not in config:
+                                config['reset_tokens'] = {}
+                            config['reset_tokens'][reset_token] = {
+                                'username': found_username,
+                                'expires': time.time() + 3600  # 1 hour from now
+                            }
+                            
+                            # Save config
+                            with open('config.yaml', 'w') as file:
+                                yaml.dump(config, file, default_flow_style=False)
+                            
+                            # Get user details
+                            user_email = config['credentials']['usernames'][found_username]['email']
+                            user_name = config['credentials']['usernames'][found_username].get('name', found_username)
+                            
+                            # Send password reset email
+                            email_sent = email_service.send_password_reset_email(user_email, user_name, reset_token)
+                            
+                            # Always show success message for security (don't reveal if email failed)
+                            st.success("Password reset email sent! If this account exists, you'll receive an email with instructions.")
+                        else:
+                            # Show generic message to prevent username/email enumeration
+                            st.success("Password reset email sent! If this account exists, you'll receive an email with instructions.")
+                    except Exception as e:
+                        st.error(f"❌ Password reset failed: {str(e)}")
+                else:
+                    st.error("Please enter your username or email address first.")
 
     with tab_signup:
         st.subheader("Create Your Account")
@@ -327,7 +579,7 @@ if "authentication_status" not in st.session_state or not st.session_state.authe
                     else:
                         try:
                             # Hash the password
-                            hashed_password = stauth.Hasher([reg_password]).generate()[0]
+                            hashed_password = bcrypt.hashpw(reg_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                             
                             # Add new user to config
                             config['credentials']['usernames'][reg_username] = {
@@ -345,7 +597,18 @@ if "authentication_status" not in st.session_state or not st.session_state.authe
                             st.session_state.name = f"{reg_first_name} {reg_last_name}"
                             st.session_state.username = reg_username
                             
-                            st.success("✅ Account created successfully! Welcome to Squeeze AI!")
+                            # Save session for persistence
+                            save_session(reg_username)
+                            
+                            # Send welcome email
+                            email_sent = email_service.send_welcome_email(reg_email, reg_username)
+                            
+                            if email_sent:
+                                st.success("✅ Account created successfully! Welcome to Squeeze Ai! Check your email for getting started tips.")
+                            else:
+                                st.success("✅ Account created successfully! Welcome to Squeeze Ai!")
+                                st.warning("⚠️ Welcome email could not be sent. Please check your email settings.")
+                            
                             st.rerun()
                             
                         except Exception as e:
@@ -396,51 +659,314 @@ if "authentication_status" not in st.session_state or not st.session_state.authe
                             # Mark usage persistently
                             mark_guest_usage(st.session_state.browser_fingerprint, "search")
                             
-                            st.markdown(f"""
-                            <div class='stock-card'>
-                                <h4>{score_data['ticker']} - Score: {score_data['score']}/100</h4>
-                                <p>{score_data['why']}</p>
-                                <small>Sign up for charts + unlimited searches!</small>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            if score_data['score'] != "ERROR":
+                                st.markdown(f"""
+                                <div class='stock-card'>
+                                    <h4>{score_data['ticker']} - Score: {score_data['score']}/100</h4>
+                                    <p>{score_data['why']}</p>
+                                    <small>Sign up for charts + unlimited searches!</small>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                st.error(f"❌ **'{ticker.upper()}' is not a valid stock ticker symbol.**")
+                                st.info("💡 **Tip:** Try valid ticker symbols like AAPL, TSLA, MSFT, GOOGL, or AMZN")
             else:
                 st.warning("Guest search used. Sign up for unlimited access!")
 
 else:
     # Logged in - show main app
-    authenticator.logout('Logout', 'sidebar')
     
     # Header
-    st.title("Squeeze AI 🚀")
-    st.markdown("### AI-Powered Squeeze Detection Dashboard")
+    st.title("Squeeze-Ai.com 🚀")
+    st.markdown("### Ai-Powered Squeeze Detection Tool")
 
     # Main tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Top Squeezes", "🔍 Stock Analysis", "📈 Dashboard", "⚙️ Settings"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Top Squeezes", "🔍 Stock Analysis", "💼 Portfolio", "📈 Dashboard", "⚙️ Settings"])
 
     with tab1:
         st.subheader("Real-Time Squeeze Scanner")
         
+        # Primary filters row
         col1, col2, col3 = st.columns(3)
         with col1:
             sector = st.selectbox("Sector Filter", ["All", "Tech", "Biotech", "Retail", "Energy", "Finance"])
         with col2:
             market_cap = st.selectbox("Market Cap", ["All", "Small (<$1B)", "Mid ($1B-$10B)", "Large (>$10B)"])
         with col3:
-            volatility = st.checkbox("High Volatility Only")
+            short_interest = st.selectbox("Short Interest", ["All", "High (>20%)", "Very High (>30%)", "Extreme (>40%)"])
+
+        # Advanced filters row (Pro only)
+        if st.session_state.get('subscribed', False):
+            st.markdown("**Advanced Filters**")
+            col4, col5, col6 = st.columns(3)
+            with col4:
+                volatility = st.checkbox("High Volatility Only")
+            with col5:
+                high_borrow_fee = st.checkbox("High Borrow Fee (>5%)")
+            with col6:
+                recent_momentum = st.checkbox("Recent Price Momentum")
+
+            # Additional filters row
+            col7, col8, col9 = st.columns(3)
+            with col7:
+                low_float = st.checkbox("Low Float (<50M shares)")
+            with col8:
+                high_volume = st.checkbox("High Volume Today")
+            with col9:
+                st.empty()  # Empty column for better spacing
+        else:
+            st.markdown("**Advanced Filters** 🔒")
+            st.info("🚀 **Pro Feature:** Advanced filtering options are available with Pro subscription")
+            # Set default values for non-subscribers
+            volatility = False
+            high_borrow_fee = False
+            recent_momentum = False
+            low_float = False
+            high_volume = False
 
         filters = []
         if sector != "All":
             filters.append(f"Sector: {sector}")
         if market_cap != "All":
             filters.append(f"Market Cap: {market_cap}")
+        if short_interest != "All":
+            filters.append(f"Short Interest: {short_interest}")
         if volatility:
             filters.append("High Volatility")
+        if high_borrow_fee:
+            filters.append("High Borrow Fee")
+        if recent_momentum:
+            filters.append("Recent Momentum")
+        if low_float:
+            filters.append("Low Float")
+        if high_volume:
+            filters.append("High Volume")
         filters_str = ", ".join(filters) if filters else None
 
-        if st.button("🚀 Scan Market", type="primary"):
+        # Check if user wants to perform a new scan
+        scan_button_clicked = st.button("🚀 Scan Market", type="primary")
+        
+        # Show limit message for free users who have used their scan
+        if (not st.session_state.subscribed and st.session_state.free_scan_used and 
+            not scan_button_clicked):
+            st.warning("🔒 Free scan limit reached!")
+            st.markdown("""
+            <div class='stock-card'>
+                <h3>Upgrade to Pro for Unlimited Access</h3>
+                <p>You've used your free market scan. Upgrade to Pro to get:</p>
+                <ul>
+                    <li>✅ Unlimited market scans</li>
+                    <li>✅ All 5 daily squeeze picks</li>
+                    <li>✅ Advanced filtering options</li>
+                    <li>✅ Historical performance data</li>
+                    <li>✅ Priority support</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Display previous scan results if available and no new scan requested
+        # Only show saved results for subscribed users (free users can't access saved results)
+        elif (st.session_state.get('last_scan_results') and not scan_button_clicked and 
+            st.session_state.subscribed):
+            st.info("📊 Showing your last market scan results")
+            stocks = st.session_state.last_scan_results
+            if st.session_state.last_scan_filters:
+                st.caption(f"Filters used: {st.session_state.last_scan_filters}")
+            else:
+                st.caption("No filters applied")
+            
+            # Display the results (same logic as after a fresh scan)
+            if st.session_state.subscribed:
+                if len(stocks) > 0:
+                    st.success(f"Found {len(stocks)} high-potential squeeze candidates!")
+                    
+                    # Display all stocks with improved layout
+                    for i, stock in enumerate(stocks):
+                        # Create a container for each stock
+                        with st.container():
+                            # Header with stock info and squeeze score
+                            st.markdown(f"### #{i+1} {stock['ticker']}")
+                            
+                            # Squeeze Score section with graphic close to text
+                            # Create beautiful circular progress indicator for score
+                            score_percentage = stock['score']
+                            circumference = 2 * 3.14159 * 30  # radius = 30 (even smaller)
+                            stroke_dasharray = circumference
+                            stroke_dashoffset = circumference - (score_percentage / 100) * circumference
+                            
+                            # Determine color based on score
+                            if score_percentage >= 80:
+                                color = "#10b981"  # Green
+                            elif score_percentage >= 60:
+                                color = "#f59e0b"  # Yellow
+                            else:
+                                color = "#ef4444"  # Red
+                            
+                            st.markdown(f"""
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;">
+                                <span style="font-weight: 600; color: #fafafa; font-size: 16px;">Squeeze Score</span>
+                                <div style="position: relative; width: 60px; height: 60px;">
+                                    <svg width="60" height="60" style="transform: rotate(-90deg);">
+                                        <!-- Background circle -->
+                                        <circle cx="30" cy="30" r="25" 
+                                                fill="none" 
+                                                stroke="#374151" 
+                                                stroke-width="4"/>
+                                        <!-- Progress circle -->
+                                        <circle cx="30" cy="30" r="25" 
+                                                fill="none" 
+                                                stroke="{color}" 
+                                                stroke-width="4" 
+                                                stroke-linecap="round"
+                                                stroke-dasharray="{stroke_dasharray}" 
+                                                stroke-dashoffset="{stroke_dashoffset}"
+                                                style="transition: stroke-dashoffset 0.6s ease-in-out;"/>
+                                    </svg>
+                                    <!-- Score text in center -->
+                                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                        <div style="font-size: 18px; font-weight: bold; color: {color}; line-height: 1;">{stock['score']}</div>
+                                        <div style="font-size: 10px; color: #9ca3af; line-height: 1;">/100</div>
+                                    </div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Metrics in columns
+                            metric_col1, metric_col2, metric_col3 = st.columns(3)
+                            with metric_col1:
+                                st.metric("Short Interest", f"{stock['short_percent']}%")
+                            with metric_col2:
+                                st.metric("Borrow Fee", f"{stock['borrow_fee']}%")
+                            with metric_col3:
+                                st.metric("Days to Cover", f"{stock['days_to_cover']}")
+                            
+                            # Catalyst information
+                            st.info(f"**Catalyst:** {stock['why']}")
+                            
+                            st.divider()
+                
+                    # Clean Summary chart
+                    st.subheader("📊 Squeeze Score Comparison")
+                    df = pd.DataFrame(stocks)
+                    
+                    # Create a clean, modern bar chart
+                    chart = alt.Chart(df).mark_bar(
+                        cornerRadiusTopLeft=4,
+                        cornerRadiusTopRight=4,
+                        strokeWidth=0,
+                        width=40  # Make bars thinner
+                    ).encode(
+                        x=alt.X('ticker:N', 
+                               sort=alt.EncodingSortField(field='score', order='descending'),
+                               title='Stock Ticker',
+                               axis=alt.Axis(
+                                   labelAngle=0,
+                                   labelFontSize=11,
+                                   labelColor='#9ca3af',
+                                   titleColor='#9ca3af',
+                                   titleFontSize=13,
+                                   domainOpacity=0,
+                                   tickOpacity=0
+                               )),
+                        y=alt.Y('score:Q', 
+                               title='Squeeze Score',
+                               scale=alt.Scale(domain=[0, 100]),
+                               axis=alt.Axis(
+                                   labelFontSize=11,
+                                   labelColor='#9ca3af',
+                                   titleColor='#9ca3af',
+                                   titleFontSize=13,
+                                   grid=True,
+                                   gridColor='#374151',
+                                   gridOpacity=0.2,
+                                   domainOpacity=0,
+                                   tickOpacity=0
+                               )),
+                        color=alt.Color('score:Q', 
+                                       scale=alt.Scale(
+                                           range=['#065f46', '#047857', '#059669', '#10b981', '#34d399', '#00D564']
+                                       ),
+                                       legend=None),
+                        tooltip=[
+                            alt.Tooltip('ticker:N', title='Stock'),
+                            alt.Tooltip('score:Q', title='Squeeze Score'),
+                            alt.Tooltip('short_percent:Q', title='Short Interest %'),
+                            alt.Tooltip('borrow_fee:Q', title='Borrow Fee %'),
+                            alt.Tooltip('days_to_cover:Q', title='Days to Cover')
+                        ]
+                    ).properties(
+                        height=280,
+                        title=alt.TitleParams(
+                            text='Top Squeeze Candidates by Score',
+                            fontSize=15,
+                            color='#00D564',
+                            anchor='start',
+                            offset=10
+                        )
+                    ).configure_view(
+                        strokeWidth=0,
+                        fill='#0e1117'
+                    ).configure_title(
+                        fontSize=15,
+                        color='#00D564'
+                    )
+                    
+                    st.altair_chart(chart, use_container_width=True)
+                else:
+                    # No stocks found with selected filters
+                    st.warning("🔍 **No stocks found with your selected filters**")
+                    st.markdown(f"""
+                    <div class='stock-card'>
+                        <h3>No Results Found</h3>
+                        <p>Your current filter combination didn't return any stocks. Try:</p>
+                        <ul>
+                            <li>🔄 <strong>Removing some filters</strong> to broaden your search</li>
+                            <li>📊 <strong>Lowering the minimum score</strong> requirement</li>
+                            <li>🎯 <strong>Choosing a different sector</strong> or market cap range</li>
+                            <li>📈 <strong>Adjusting short interest thresholds</strong></li>
+                        </ul>
+                        <p style='margin-top: 1rem;'>
+                            <strong>Current filters:</strong> {st.session_state.last_scan_filters if st.session_state.last_scan_filters else "None"}
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            else:
+                # Free preview
+                st.info("🎯 Free Preview: Showing top squeeze candidate only")
+                if stocks and len(stocks) > 0:
+                    stock = stocks[0]
+                    st.markdown(f"""
+                    <div class='stock-card'>
+                        <h3>{stock['ticker']} - Squeeze Score: {stock['score']}/100</h3>
+                        <p><strong>Why:</strong> {stock['why']}</p>
+                        <p style='color: #00D564; margin-top: 1rem;'>
+                            ⚡ Unlock all 5 stocks with Pro!
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.warning("🔍 **No stocks found with your selected filters**")
+                    st.markdown(f"""
+                    <div class='stock-card'>
+                        <h3>No Results Found</h3>
+                        <p>Your current filter combination didn't return any stocks. Try:</p>
+                        <ul>
+                            <li>🔄 <strong>Removing some filters</strong> to broaden your search</li>
+                            <li>📊 <strong>Lowering the minimum score</strong> requirement</li>
+                            <li>🎯 <strong>Choosing a different sector</strong> or market cap range</li>
+                            <li>📈 <strong>Adjusting short interest thresholds</strong></li>
+                        </ul>
+                        <p style='margin-top: 1rem;'>
+                            <strong>Current filters:</strong> {st.session_state.last_scan_filters if st.session_state.last_scan_filters else "None"}
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+        # Handle new scan request
+        if scan_button_clicked:
             # Check if user is subscribed or if they've used their free scan
-            if "subscribed" not in st.session_state:
-                st.session_state.subscribed = False
+            # Note: subscribed status should be loaded from session, not defaulted here
             
             if not st.session_state.subscribed and st.session_state.free_scan_used:
                 # Free user has already used their scan
@@ -467,8 +993,8 @@ else:
                                 'price_data': {
                                     'currency': 'usd',
                                     'product_data': {
-                                        'name': 'Squeeze AI Pro',
-                                        'description': 'Full access to all squeeze alerts and analysis'
+                                        'name': 'Squeeze Ai Pro',
+                                        'description': 'Full access to all squeeze analysis and features'
                                     },
                                     'unit_amount': 2900,
                                     'recurring': {
@@ -485,30 +1011,36 @@ else:
                     except Exception as e:
                         st.error(f"Payment setup error: {str(e)}")
                         st.session_state.subscribed = True  # Demo mode
+                        save_session(st.session_state.username)  # Save subscription status
             else:
                 with st.spinner("Analyzing thousands of stocks..."):
                     stocks = get_squeeze_stocks(filters_str)
                 
+                # Save scan results and filters to session
+                st.session_state.last_scan_results = stocks
+                st.session_state.last_scan_filters = filters_str
+                save_session(st.session_state.username)
+                
                 # Mark free scan as used for non-subscribers
                 if not st.session_state.subscribed:
                     st.session_state.free_scan_used = True
+                    save_session(st.session_state.username)  # Save the usage limit
 
                 if st.session_state.subscribed:
-                    st.success(f"Found {len(stocks)} high-potential squeeze candidates!")
-                    
-                    # Display all stocks with improved layout
-                    for i, stock in enumerate(stocks):
-                        # Create a container for each stock
-                        with st.container():
-                            # Header with stock info and circular score
-                            col1, col2 = st.columns([3, 1])
-                            with col1:
+                    if len(stocks) > 0:
+                        st.success(f"Found {len(stocks)} high-potential squeeze candidates!")
+                        
+                        # Display all stocks with improved layout
+                        for i, stock in enumerate(stocks):
+                            # Create a container for each stock
+                            with st.container():
+                                # Header with stock info and squeeze score
                                 st.markdown(f"### #{i+1} {stock['ticker']}")
-                                st.caption("Squeeze Score")
-                            with col2:
-                                # Create circular progress indicator for score
+                                
+                                # Squeeze Score section with graphic close to text
+                                # Create beautiful circular progress indicator for score
                                 score_percentage = stock['score']
-                                circumference = 2 * 3.14159 * 45  # radius = 45
+                                circumference = 2 * 3.14159 * 30  # radius = 30 (even smaller)
                                 stroke_dasharray = circumference
                                 stroke_dashoffset = circumference - (score_percentage / 100) * circumference
                                 
@@ -521,113 +1053,134 @@ else:
                                     color = "#ef4444"  # Red
                                 
                                 st.markdown(f"""
-                                <div style="display: flex; justify-content: center; align-items: center;">
-                                    <div style="position: relative; width: 120px; height: 120px;">
-                                        <svg width="120" height="120" style="transform: rotate(-90deg);">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;">
+                                    <span style="font-weight: 600; color: #fafafa; font-size: 16px;">Squeeze Score</span>
+                                    <div style="position: relative; width: 60px; height: 60px;">
+                                        <svg width="60" height="60" style="transform: rotate(-90deg);">
                                             <!-- Background circle -->
-                                            <circle cx="60" cy="60" r="45" 
+                                            <circle cx="30" cy="30" r="25" 
                                                     fill="none" 
                                                     stroke="#374151" 
-                                                    stroke-width="8"/>
+                                                    stroke-width="4"/>
                                             <!-- Progress circle -->
-                                            <circle cx="60" cy="60" r="45" 
+                                            <circle cx="30" cy="30" r="25" 
                                                     fill="none" 
                                                     stroke="{color}" 
-                                                    stroke-width="8" 
+                                                    stroke-width="4" 
                                                     stroke-linecap="round"
                                                     stroke-dasharray="{stroke_dasharray}" 
                                                     stroke-dashoffset="{stroke_dashoffset}"
-                                                    style="transition: stroke-dashoffset 0.5s ease-in-out;"/>
+                                                    style="transition: stroke-dashoffset 0.6s ease-in-out;"/>
                                         </svg>
                                         <!-- Score text in center -->
                                         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-                                            <div style="font-size: 24px; font-weight: bold; color: {color};">{stock['score']}</div>
-                                            <div style="font-size: 12px; color: #9ca3af;">/100</div>
+                                            <div style="font-size: 18px; font-weight: bold; color: {color}; line-height: 1;">{stock['score']}</div>
+                                            <div style="font-size: 10px; color: #9ca3af; line-height: 1;">/100</div>
                                         </div>
                                     </div>
                                 </div>
                                 """, unsafe_allow_html=True)
-                            
-                            # Metrics in columns
-                            metric_col1, metric_col2, metric_col3 = st.columns(3)
-                            with metric_col1:
-                                st.metric("Short Interest", f"{stock['short_percent']}%")
-                            with metric_col2:
-                                st.metric("Borrow Fee", f"{stock['borrow_fee']}%")
-                            with metric_col3:
-                                st.metric("Days to Cover", stock['days_to_cover'])
-                            
-                            # Catalyst information
-                            st.info(f"**Catalyst:** {stock['why']}")
-                            
-                            st.divider()
+                                
+                                # Metrics in columns
+                                metric_col1, metric_col2, metric_col3 = st.columns(3)
+                                with metric_col1:
+                                    st.metric("Short Interest", f"{stock['short_percent']}%")
+                                with metric_col2:
+                                    st.metric("Borrow Fee", f"{stock['borrow_fee']}%")
+                                with metric_col3:
+                                    st.metric("Days to Cover", stock['days_to_cover'])
+                                
+                                # Catalyst information
+                                st.info(f"**Catalyst:** {stock['why']}")
+                                
+                                st.divider()
                     
-                    # Improved Summary chart
-                    st.subheader("📊 Squeeze Score Comparison")
-                    df = pd.DataFrame(stocks)
-                    
-                    # Create a more refined bar chart
-                    chart = alt.Chart(df).mark_bar(
-                        cornerRadiusTopLeft=6,
-                        cornerRadiusTopRight=6,
-                        strokeWidth=1,
-                        stroke='#374151'
-                    ).encode(
-                        x=alt.X('ticker:N', 
-                               sort=alt.EncodingSortField(field='score', order='descending'),
-                               title='Stock Ticker',
-                               axis=alt.Axis(
-                                   labelAngle=0,
-                                   labelFontSize=12,
-                                   labelColor='#9ca3af',
-                                   titleColor='#9ca3af',
-                                   titleFontSize=14
-                               )),
-                        y=alt.Y('score:Q', 
-                               title='Squeeze Score',
-                               scale=alt.Scale(domain=[0, 100]),
-                               axis=alt.Axis(
-                                   labelFontSize=12,
-                                   labelColor='#9ca3af',
-                                   titleColor='#9ca3af',
-                                   titleFontSize=14,
-                                   grid=True,
-                                   gridColor='#374151',
-                                   gridOpacity=0.3
-                               )),
-                        color=alt.Color('score:Q', 
-                                       scale=alt.Scale(
-                                           range=['#065f46', '#047857', '#059669', '#10b981', '#34d399', '#6ee7b7']
-                                       ),
-                                       legend=None),
-                        tooltip=[
-                            alt.Tooltip('ticker:N', title='Stock'),
-                            alt.Tooltip('score:Q', title='Squeeze Score'),
-                            alt.Tooltip('short_percent:Q', title='Short Interest %'),
-                            alt.Tooltip('borrow_fee:Q', title='Borrow Fee %'),
-                            alt.Tooltip('days_to_cover:Q', title='Days to Cover')
-                        ]
-                    ).properties(
-                        height=350,
-                        title=alt.TitleParams(
-                            text='Top Squeeze Candidates by Score',
-                            fontSize=16,
-                            color='#00D564',
-                            anchor='start'
+                        # Clean Summary chart
+                        st.subheader("📊 Squeeze Score Comparison")
+                        df = pd.DataFrame(stocks)
+                        
+                        # Create a clean, modern bar chart
+                        chart = alt.Chart(df).mark_bar(
+                            cornerRadiusTopLeft=4,
+                            cornerRadiusTopRight=4,
+                            strokeWidth=0,
+                            width=40  # Make bars thinner
+                        ).encode(
+                            x=alt.X('ticker:N', 
+                                   sort=alt.EncodingSortField(field='score', order='descending'),
+                                   title='Stock Ticker',
+                                   axis=alt.Axis(
+                                       labelAngle=0,
+                                       labelFontSize=11,
+                                       labelColor='#9ca3af',
+                                       titleColor='#9ca3af',
+                                       titleFontSize=13,
+                                       domainOpacity=0,
+                                       tickOpacity=0
+                                   )),
+                            y=alt.Y('score:Q', 
+                                   title='Squeeze Score',
+                                   scale=alt.Scale(domain=[0, 100]),
+                                   axis=alt.Axis(
+                                       labelFontSize=11,
+                                       labelColor='#9ca3af',
+                                       titleColor='#9ca3af',
+                                       titleFontSize=13,
+                                       grid=True,
+                                       gridColor='#374151',
+                                       gridOpacity=0.2,
+                                       domainOpacity=0,
+                                       tickOpacity=0
+                                   )),
+                            color=alt.Color('score:Q', 
+                                           scale=alt.Scale(
+                                               range=['#065f46', '#047857', '#059669', '#10b981', '#34d399', '#00D564']
+                                           ),
+                                           legend=None),
+                            tooltip=[
+                                alt.Tooltip('ticker:N', title='Stock'),
+                                alt.Tooltip('score:Q', title='Squeeze Score'),
+                                alt.Tooltip('short_percent:Q', title='Short Interest %'),
+                                alt.Tooltip('borrow_fee:Q', title='Borrow Fee %'),
+                                alt.Tooltip('days_to_cover:Q', title='Days to Cover')
+                            ]
+                        ).properties(
+                            height=280,
+                            title=alt.TitleParams(
+                                text='Top Squeeze Candidates by Score',
+                                fontSize=15,
+                                color='#00D564',
+                                anchor='start',
+                                offset=10
+                            )
+                        ).configure_view(
+                            strokeWidth=0,
+                            fill='#0e1117'
+                        ).configure_title(
+                            fontSize=15,
+                            color='#00D564'
                         )
-                    ).configure_view(
-                        strokeWidth=0,
-                        fill='#0e1117'
-                    ).configure_axis(
-                        domainColor='#374151',
-                        tickColor='#374151'
-                    ).configure_title(
-                        fontSize=16,
-                        color='#00D564'
-                    )
-                    
-                    st.altair_chart(chart, use_container_width=True)
-                    
+                        
+                        st.altair_chart(chart, use_container_width=True)
+                    else:
+                        # No stocks found with selected filters
+                        st.warning("🔍 **No stocks found with your selected filters**")
+                        st.markdown(f"""
+                        <div class='stock-card'>
+                            <h3>No Results Found</h3>
+                            <p>Your current filter combination didn't return any stocks. Try:</p>
+                            <ul>
+                                <li>🔄 <strong>Removing some filters</strong> to broaden your search</li>
+                                <li>📊 <strong>Lowering the minimum score</strong> requirement</li>
+                                <li>🎯 <strong>Choosing a different sector</strong> or market cap range</li>
+                                <li>📈 <strong>Adjusting short interest thresholds</strong></li>
+                            </ul>
+                            <p style='margin-top: 1rem;'>
+                                <strong>Current filters:</strong> {filters_str if filters_str else "None"}
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
                 else:
                     # Free preview
                     st.info("🎯 Free Preview: Showing top squeeze candidate only")
@@ -638,7 +1191,7 @@ else:
                             <h3>{stock['ticker']} - Squeeze Score: {stock['score']}/100</h3>
                             <p><strong>Why:</strong> {stock['why']}</p>
                             <p style='color: #00D564; margin-top: 1rem;'>
-                                ⚡ Unlock all 5 stocks + real-time alerts with Pro!
+                                ⚡ Unlock all 5 stocks with Pro!
                             </p>
                         </div>
                         """, unsafe_allow_html=True)
@@ -652,8 +1205,8 @@ else:
                                         'price_data': {
                                             'currency': 'usd',
                                             'product_data': {
-                                                'name': 'Squeeze AI Pro',
-                                                'description': 'Full access to all squeeze alerts and analysis'
+                                                'name': 'Squeeze Ai Pro',
+                                                'description': 'Full access to all squeeze analysis and features'
                                             },
                                             'unit_amount': 2900,
                                             'recurring': {
@@ -670,6 +1223,21 @@ else:
                             except Exception as e:
                                 st.error(f"Payment setup error: {str(e)}")
                                 st.session_state.subscribed = True  # Demo mode
+                        save_session(st.session_state.username)  # Save subscription status
+                    else:
+                        # No stocks found for free preview
+                        st.warning("🔍 **No stocks found with your selected filters**")
+                        st.markdown(f"""
+                        <div class='stock-card'>
+                            <h3>No Results Found</h3>
+                            <p>Your current filter combination didn't return any stocks.</p>
+                            <p><strong>Current filters:</strong> {filters_str if filters_str else "None"}</p>
+                            <p style='color: #00D564; margin-top: 1rem;'>
+                                ⚡ Upgrade to Pro for more filtering options and broader search capabilities!
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
 
                 # Save to history
                 history_file = f"{st.session_state.username}_history.csv"
@@ -686,11 +1254,93 @@ else:
         with col2:
             period = st.radio("Chart Period", ["1mo", "3mo", "6mo"], horizontal=True)
         
-        if st.button("Analyze Stock", type="primary"):
+        # Check if user wants to perform a new analysis
+        analyze_button_clicked = st.button("Analyze Stock", type="primary")
+        
+        # Show limit message for free users who have used their analysis
+        if (not st.session_state.subscribed and st.session_state.free_search_used and 
+            not analyze_button_clicked):
+            st.warning("🔒 Free analysis limit reached!")
+            st.markdown("""
+            <div class='stock-card'>
+                <h3>Upgrade to Pro for Unlimited Access</h3>
+                <p>You've used your free stock analysis. Upgrade to Pro to get:</p>
+                <ul>
+                    <li>✅ Unlimited stock analysis</li>
+                    <li>✅ Full price charts and historical data</li>
+                    <li>✅ Score breakdown visualizations</li>
+                    <li>✅ All 5 daily squeeze picks</li>
+                    <li>✅ Priority support</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Display previous analysis results if available and no new analysis requested
+        # Only show saved results for subscribed users (free users can't access saved results)
+        elif (st.session_state.get('last_analysis_result') and 
+            st.session_state.get('last_analysis_ticker') and 
+            not analyze_button_clicked and
+            st.session_state.subscribed):
+            
+            st.info(f"📊 Showing your last analysis for {st.session_state.last_analysis_ticker}")
+            
+            # Restore the analysis data
+            ticker = st.session_state.last_analysis_ticker
+            score_data = st.session_state.last_analysis_result
+            period = st.session_state.get('last_analysis_period', '6mo')
+            
+            # Display the same results as after fresh analysis
+            if score_data['score'] != "ERROR":
+                # Display metrics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Squeeze Score", f"{score_data['score']}/100")
+                with col2:
+                    st.metric("Short Interest", f"{score_data['short_percent']}%")
+                with col3:
+                    st.metric("Borrow Fee", f"{score_data['borrow_fee']}%")
+                with col4:
+                    st.metric("Days to Cover", f"{score_data['days_to_cover']}")
+                
+                # Catalyst/Why information
+                st.info(f"**Analysis:** {score_data['why']}")
+                
+                # Get fresh historical data for the chart
+                hist_data = get_historical_data(ticker, period)
+                
+                # Display chart if we have historical data
+                if not hist_data.empty:
+                    st.subheader(f"📈 {ticker} Price Chart ({period})")
+                    
+                    # Create price chart
+                    chart = alt.Chart(hist_data).mark_line(
+                        color='#00D564',
+                        strokeWidth=2,
+                        point=alt.OverlayMarkDef(color='#00D564', size=30)
+                    ).encode(
+                        x=alt.X('Date:T', title='Date'),
+                        y=alt.Y('Close:Q', title='Price ($)'),
+                        tooltip=['Date:T', 'Close:Q', 'Volume:Q']
+                    ).properties(
+                        height=400,
+                        title=f'{ticker} Stock Price - {period}'
+                    ).configure_title(
+                        fontSize=16,
+                        color='#00D564'
+                    )
+                    
+                    st.altair_chart(chart, use_container_width=True)
+                else:
+                    st.warning("Chart data unavailable for this stock")
+            else:
+                st.error(f"❌ {score_data['why']}")
+            
+        
+        # Handle new analysis request
+        if analyze_button_clicked:
             if ticker:
                 # Check if user is subscribed or if they've used their free search
-                if "subscribed" not in st.session_state:
-                    st.session_state.subscribed = False
+                # Note: subscribed status should be loaded from session, not defaulted here
                 
                 if not st.session_state.subscribed and st.session_state.free_search_used:
                     # Free user has already used their search
@@ -717,8 +1367,8 @@ else:
                                     'price_data': {
                                         'currency': 'usd',
                                         'product_data': {
-                                            'name': 'Squeeze AI Pro',
-                                            'description': 'Full access to all squeeze alerts and analysis'
+                                            'name': 'Squeeze Ai Pro',
+                                            'description': 'Full access to all squeeze analysis and features'
                                         },
                                         'unit_amount': 2900,
                                         'recurring': {
@@ -735,17 +1385,25 @@ else:
                         except Exception as e:
                             st.error(f"Payment setup error: {str(e)}")
                             st.session_state.subscribed = True  # Demo mode
+                        save_session(st.session_state.username)  # Save subscription status
                 else:
                     with st.spinner(f"Analyzing {ticker.upper()}..."):
                         # Mark free search as used for non-subscribers
                         if not st.session_state.subscribed:
                             st.session_state.free_search_used = True
+                            save_session(st.session_state.username)  # Save the usage limit
                         
                         # Get squeeze score
                         score_data = get_single_squeeze_score(ticker.upper())
                         
                         # Get historical data
                         hist_data = get_historical_data(ticker.upper(), period)
+                        
+                        # Save analysis results to session
+                        st.session_state.last_analysis_result = score_data
+                        st.session_state.last_analysis_ticker = ticker.upper()
+                        st.session_state.last_analysis_period = period
+                        save_session(st.session_state.username)
                         
                         if score_data['score'] != "ERROR":
                             # Display metrics
@@ -854,8 +1512,29 @@ else:
                             
                             st.altair_chart(breakdown_chart, use_container_width=True)
                         else:
-                            st.error("Error analyzing stock. Please try again.")
+                            # Handle invalid ticker symbol
+                            st.error(f"❌ **'{ticker.upper()}' is not a valid stock ticker symbol.**")
+                            st.markdown("""
+                            <div class='stock-card'>
+                                <h3>Invalid Ticker Symbol</h3>
+                                <p>Please check your ticker symbol and try again. Examples of valid ticker symbols:</p>
+                                <ul>
+                                    <li><strong>AAPL</strong> - Apple Inc.</li>
+                                    <li><strong>TSLA</strong> - Tesla Inc.</li>
+                                    <li><strong>MSFT</strong> - Microsoft Corporation</li>
+                                    <li><strong>GOOGL</strong> - Alphabet Inc.</li>
+                                    <li><strong>AMZN</strong> - Amazon.com Inc.</li>
+                                </ul>
+                                <p style='margin-top: 1rem;'>
+                                    <strong>Tips:</strong>
+                                    <br>• Use the official stock ticker symbol (not company name)
+                                    <br>• Check if the company is publicly traded
+                                    <br>• Verify the symbol on financial websites like Yahoo Finance
+                                </p>
+                            </div>
+                            """, unsafe_allow_html=True)
                         
+
                         # Save to history
                         history_file = f"{st.session_state.username}_history.csv"
                         with open(history_file, 'a', newline='') as f:
@@ -865,6 +1544,481 @@ else:
                 st.warning("Please enter a ticker symbol")
 
     with tab3:
+        st.subheader("Portfolio Tracker")
+        
+        # Check if user has Pro access
+        if not st.session_state.subscribed:
+            st.warning("🔒 Portfolio tracking is a Pro feature!")
+            st.markdown("""
+            <div class='stock-card'>
+                <h3>Upgrade to Pro for Portfolio Tracking</h3>
+                <p>Track your stock holdings with advanced portfolio analytics:</p>
+                <ul>
+                    <li>✅ Add unlimited holdings</li>
+                    <li>✅ Real-time portfolio value tracking</li>
+                    <li>✅ 1-year performance charts</li>
+                    <li>✅ Profit/loss analysis</li>
+                    <li>✅ Portfolio diversity metrics</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("🔓 Upgrade to Pro - $29/month", type="primary", key="portfolio_upgrade"):
+                try:
+                    session = stripe.checkout.Session.create(
+                        payment_method_types=['card'],
+                        line_items=[{
+                            'price_data': {
+                                'currency': 'usd',
+                                'product_data': {
+                                    'name': 'Squeeze Ai Pro',
+                                    'description': 'Full access to all squeeze analysis and portfolio features'
+                                },
+                                'unit_amount': 2900,
+                                'recurring': {
+                                    'interval': 'month'
+                                }
+                            },
+                            'quantity': 1
+                        }],
+                        mode='subscription',
+                        success_url="http://localhost:8501?subscribed=true",
+                        cancel_url="http://localhost:8501"
+                    )
+                    st.markdown(f"[Complete Payment]({session.url})")
+                except Exception as e:
+                    st.error(f"Payment setup error: {str(e)}")
+                    st.session_state.subscribed = True  # Demo mode
+                    save_session(st.session_state.username)
+        else:
+            # Portfolio functionality for Pro users
+            st.success("🚀 Pro Portfolio Tracker")
+            
+            # Initialize portfolio data in session if not exists
+            if 'portfolio_holdings' not in st.session_state:
+                st.session_state.portfolio_holdings = []
+            
+            # Add new holding section
+            st.subheader("Add New Holding")
+            col1, col2, col3 = st.columns([2, 1, 1])
+            
+            with col1:
+                ticker_input = st.text_input("Stock Ticker", placeholder="AAPL", key="portfolio_ticker")
+            with col2:
+                shares_input = st.number_input("Shares", min_value=1, step=1, key="portfolio_shares")
+            with col3:
+                avg_price_input = st.number_input("Avg Price ($)", min_value=0.01, step=1.00, key="portfolio_avg_price")
+            
+            if st.button("Add to Portfolio", type="primary"):
+                if ticker_input and shares_input and avg_price_input:
+                    # Validate ticker exists
+                    ticker_upper = ticker_input.upper()
+                    
+                    with st.spinner(f"Validating {ticker_upper}..."):
+                        try:
+                            # Check if ticker exists by trying to fetch basic info
+                            stock = yf.Ticker(ticker_upper)
+                            info = stock.info
+                            
+                            # Try to get recent price to confirm ticker is valid
+                            recent_data = stock.history(period="5d")
+                            
+                            if recent_data.empty or not info or info.get('symbol') != ticker_upper:
+                                raise ValueError("Invalid ticker")
+                            
+                            # Get company name for confirmation
+                            company_name = info.get('longName', info.get('shortName', ticker_upper))
+                            
+                            # Ticker is valid, proceed with adding
+                            existing_holding = next((h for h in st.session_state.portfolio_holdings if h['ticker'] == ticker_upper), None)
+                            
+                            if existing_holding:
+                                # Update existing holding (average cost basis)
+                                total_shares = existing_holding['shares'] + shares_input
+                                total_cost = (existing_holding['shares'] * existing_holding['avg_price']) + (shares_input * avg_price_input)
+                                new_avg_price = total_cost / total_shares
+                                
+                                existing_holding['shares'] = total_shares
+                                existing_holding['avg_price'] = new_avg_price
+                                st.success(f"✅ Updated {ticker_upper} ({company_name}) holding!")
+                            else:
+                                # Add new holding
+                                st.session_state.portfolio_holdings.append({
+                                    'ticker': ticker_upper,
+                                    'shares': shares_input,
+                                    'avg_price': avg_price_input,
+                                    'date_added': datetime.now().strftime('%Y-%m-%d')
+                                })
+                                st.success(f"✅ Added {ticker_upper} ({company_name}) to portfolio!")
+                            
+                            # Save portfolio to session
+                            save_session(st.session_state.username)
+                            st.rerun()
+                            
+                        except Exception as e:
+                            # Ticker doesn't exist or other error
+                            st.error(f"❌ **'{ticker_upper}' is not a valid ticker symbol**")
+                            st.markdown(f"""
+                            <div style='background-color: #1f2937; padding: 1rem; border-radius: 8px; border-left: 4px solid #ef4444; margin-top: 0.5rem;'>
+                                <p style='margin: 0; color: #fca5a5;'><strong>Please check:</strong></p>
+                                <ul style='margin: 0.5rem 0; padding-left: 1.5rem; color: #fca5a5;'>
+                                    <li>Ticker symbol is spelled correctly</li>
+                                    <li>Company is publicly traded</li>
+                                    <li>Use the official ticker symbol (e.g., AAPL for Apple)</li>
+                                    <li>Check if it's delisted or suspended</li>
+                                </ul>
+                                <p style='margin: 0.5rem 0 0 0; color: #9ca3af; font-size: 0.9rem;'>
+                                    <strong>Examples:</strong> AAPL, TSLA, MSFT, GOOGL, AMZN, SPY, QQQ
+                                </p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                else:
+                    st.error("Please fill in all fields")
+            
+            # Display current holdings
+            if st.session_state.portfolio_holdings:
+                st.subheader("Current Holdings")
+                
+                # Calculate portfolio metrics
+                total_value = 0
+                total_cost = 0
+                portfolio_data = []
+                
+                for holding in st.session_state.portfolio_holdings:
+                    try:
+                        # Get current price
+                        stock = yf.Ticker(holding['ticker'])
+                        price_data = stock.history(period="1d")
+                        
+                        # Check if we have valid price data
+                        if not price_data.empty and 'Close' in price_data.columns:
+                            current_price = price_data['Close'].iloc[-1]
+                            
+                            # Calculate metrics
+                            current_value = holding['shares'] * current_price
+                            cost_basis = holding['shares'] * holding['avg_price']
+                            pnl = current_value - cost_basis
+                            pnl_percent = (pnl / cost_basis) * 100
+                            
+                            portfolio_data.append({
+                                'ticker': holding['ticker'],
+                                'shares': holding['shares'],
+                                'avg_price': holding['avg_price'],
+                                'current_price': current_price,
+                                'current_value': current_value,
+                                'cost_basis': cost_basis,
+                                'pnl': pnl,
+                                'pnl_percent': pnl_percent
+                            })
+                            
+                            total_value += current_value
+                            total_cost += cost_basis
+                        else:
+                            # Skip this holding silently - no error message
+                            continue
+                        
+                    except Exception as e:
+                        # Skip this holding silently - no error message
+                        continue
+                
+                # Portfolio summary
+                total_pnl = total_value - total_cost
+                total_pnl_percent = (total_pnl / total_cost) * 100 if total_cost > 0 else 0
+                
+                # Show last update time
+                current_time = datetime.now()
+                st.caption(f"📊 Portfolio updated: {current_time.strftime('%I:%M:%S %p')} ET")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total Value", f"${total_value:,.2f}")
+                with col2:
+                    st.metric("Total Cost", f"${total_cost:,.2f}")
+                with col3:
+                    st.metric("Total P&L", f"${total_pnl:,.2f}", f"{total_pnl_percent:+.2f}%")
+                with col4:
+                    st.metric("Holdings", len(st.session_state.portfolio_holdings))
+                
+                # Holdings table
+                st.subheader("Holdings Detail")
+                for i, data in enumerate(portfolio_data):
+                    with st.expander(f"{data['ticker']} - {data['shares']} shares"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.metric("Current Price", f"${data['current_price']:.2f}")
+                            st.metric("Avg Cost", f"${data['avg_price']:.2f}")
+                            st.metric("Current Value", f"${data['current_value']:.2f}")
+                        
+                        with col2:
+                            st.metric("Cost Basis", f"${data['cost_basis']:.2f}")
+                            st.metric("P&L", f"${data['pnl']:.2f}", f"{data['pnl_percent']:+.2f}%")
+                            if st.button(f"Remove {data['ticker']}", key=f"remove_{data['ticker']}"):
+                                st.session_state.portfolio_holdings = [h for h in st.session_state.portfolio_holdings if h['ticker'] != data['ticker']]
+                                save_session(st.session_state.username)
+                                st.rerun()
+                
+                # Interactive Portfolio Performance Chart
+                if portfolio_data:
+                    st.subheader("Interactive Portfolio Performance")
+                    
+                    # Time period selector
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        chart_period = st.selectbox(
+                            "Time Period",
+                            options=["1W", "1M", "3M", "6M", "1Y", "2Y"],
+                            index=4,  # Default to 1Y
+                            key="portfolio_chart_period"
+                        )
+                    
+                    # Map period to days
+                    period_days = {
+                        "1W": 7, "1M": 30, "3M": 90, 
+                        "6M": 180, "1Y": 365, "2Y": 730
+                    }
+                    
+                    days = period_days[chart_period]
+                    end_date = datetime.now()
+                    start_date = end_date - timedelta(days=days)
+                    
+                    with st.spinner(f"Loading {chart_period} portfolio data..."):
+                        try:
+                            # Enhanced portfolio calculation with better performance
+                            portfolio_history = []
+                            
+                            # Get all tickers and fetch data once
+                            tickers = [holding['ticker'] for holding in st.session_state.portfolio_holdings]
+                            
+                            if tickers:
+                                # Fetch historical data for all tickers at once (more efficient)
+                                ticker_data = {}
+                                for ticker in tickers:
+                                    try:
+                                        stock = yf.Ticker(ticker)
+                                        hist = stock.history(start=start_date, end=end_date)
+                                        if not hist.empty:
+                                            ticker_data[ticker] = hist
+                                    except:
+                                        continue
+                                
+                                # Calculate portfolio value for each day
+                                if ticker_data:
+                                    # Get all unique dates
+                                    all_dates = set()
+                                    for hist in ticker_data.values():
+                                        all_dates.update(hist.index.date)
+                                    
+                                    all_dates = sorted(all_dates)
+                                    
+                                    for date in all_dates:
+                                        daily_value = 0
+                                        daily_cost = 0
+                                        
+                                        for holding in st.session_state.portfolio_holdings:
+                                            ticker = holding['ticker']
+                                            if ticker in ticker_data:
+                                                hist = ticker_data[ticker]
+                                                # Find closest date
+                                                available_dates = [d.date() for d in hist.index]
+                                                closest_date = min(available_dates, key=lambda x: abs((x - date).days))
+                                                
+                                                if abs((closest_date - date).days) <= 3:  # Within 3 days
+                                                    price_data = hist[hist.index.date == closest_date]
+                                                    if not price_data.empty:
+                                                        price = price_data['Close'].iloc[0]
+                                                        daily_value += holding['shares'] * price
+                                                        daily_cost += holding['shares'] * holding['avg_price']
+                                        
+                                        if daily_value > 0:
+                                            pnl = daily_value - daily_cost
+                                            pnl_percent = (pnl / daily_cost) * 100 if daily_cost > 0 else 0
+                                            
+                                            portfolio_history.append({
+                                                'date': pd.Timestamp(date),
+                                                'value': daily_value,
+                                                'cost': daily_cost,
+                                                'pnl': pnl,
+                                                'pnl_percent': pnl_percent
+                                            })
+                            
+                            if portfolio_history:
+                                df_portfolio = pd.DataFrame(portfolio_history)
+                                df_portfolio = df_portfolio.sort_values('date')
+                                
+                                # Calculate additional metrics
+                                first_value = df_portfolio['value'].iloc[0]
+                                last_value = df_portfolio['value'].iloc[-1]
+                                period_return = ((last_value - first_value) / first_value) * 100
+                                
+                                # Display period summary
+                                col1, col2, col3, col4 = st.columns(4)
+                                with col1:
+                                    st.metric("Period Return", f"{period_return:+.2f}%")
+                                with col2:
+                                    st.metric("Period High", f"${df_portfolio['value'].max():,.2f}")
+                                with col3:
+                                    st.metric("Period Low", f"${df_portfolio['value'].min():,.2f}")
+                                with col4:
+                                    volatility = df_portfolio['pnl_percent'].std()
+                                    st.metric("Volatility", f"{volatility:.2f}%")
+                                
+                                # Create interactive chart with selection
+                                brush = alt.selection_interval(encodings=['x'])
+                                
+                                # Main chart
+                                base = alt.Chart(df_portfolio).add_selection(brush)
+                                
+                                # Area chart for portfolio value
+                                area_chart = base.mark_area(
+                                    line={'color': '#00D564', 'strokeWidth': 2},
+                                    color=alt.Gradient(
+                                        gradient='linear',
+                                        stops=[
+                                            alt.GradientStop(color='#00D564', offset=0),
+                                            alt.GradientStop(color='rgba(0, 213, 100, 0.1)', offset=1)
+                                        ],
+                                        x1=1, x2=1, y1=1, y2=0
+                                    ),
+                                    opacity=0.8
+                                ).encode(
+                                    x=alt.X('date:T', 
+                                           title='Date',
+                                           axis=alt.Axis(format='%b %d' if days <= 30 else '%b %Y', 
+                                                        grid=False, 
+                                                        labelColor='#9ca3af',
+                                                        titleColor='#9ca3af')),
+                                    y=alt.Y('value:Q', 
+                                           title='Portfolio Value ($)',
+                                           axis=alt.Axis(format='$,.0f', 
+                                                        grid=True, 
+                                                        gridColor='#374151',
+                                                        labelColor='#9ca3af',
+                                                        titleColor='#9ca3af')),
+                                    tooltip=[
+                                        alt.Tooltip('date:T', format='%Y-%m-%d', title='Date'),
+                                        alt.Tooltip('value:Q', format='$,.2f', title='Portfolio Value'),
+                                        alt.Tooltip('cost:Q', format='$,.2f', title='Cost Basis'),
+                                        alt.Tooltip('pnl:Q', format='$,.2f', title='P&L ($)'),
+                                        alt.Tooltip('pnl_percent:Q', format='.2f', title='P&L (%)')
+                                    ]
+                                ).properties(
+                                    height=400,
+                                    title={
+                                        'text': f'Portfolio Performance ({chart_period}) - {period_return:+.2f}%',
+                                        'color': '#00D564' if period_return > 0 else '#FF4444',
+                                        'fontSize': 16
+                                    }
+                                )
+                                
+                                # Cost basis line
+                                cost_line = base.mark_line(
+                                    color='#6b7280',
+                                    strokeDash=[5, 5],
+                                    strokeWidth=1
+                                ).encode(
+                                    x='date:T',
+                                    y='cost:Q',
+                                    tooltip=[
+                                        alt.Tooltip('date:T', format='%Y-%m-%d', title='Date'),
+                                        alt.Tooltip('cost:Q', format='$,.2f', title='Cost Basis')
+                                    ]
+                                )
+                                
+                                # Combine charts
+                                main_chart = (area_chart + cost_line).resolve_scale(
+                                    y='shared'
+                                ).configure_view(
+                                    strokeWidth=0,
+                                    fill='#0e1117'
+                                ).configure_title(
+                                    fontSize=16,
+                                    color='#00D564' if period_return > 0 else '#FF4444'
+                                )
+                                
+                                st.altair_chart(main_chart, use_container_width=True)
+                                
+                                # Performance statistics
+                                st.subheader("Performance Statistics")
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    st.markdown("**Returns by Period:**")
+                                    if len(df_portfolio) > 7:
+                                        week_return = ((df_portfolio['value'].iloc[-1] - df_portfolio['value'].iloc[-7]) / df_portfolio['value'].iloc[-7]) * 100
+                                        st.write(f"• 1 Week: {week_return:+.2f}%")
+                                    if len(df_portfolio) > 30:
+                                        month_return = ((df_portfolio['value'].iloc[-1] - df_portfolio['value'].iloc[-30]) / df_portfolio['value'].iloc[-30]) * 100
+                                        st.write(f"• 1 Month: {month_return:+.2f}%")
+                                    st.write(f"• {chart_period}: {period_return:+.2f}%")
+                                
+                                with col2:
+                                    st.markdown("**Risk Metrics:**")
+                                    daily_returns = df_portfolio['pnl_percent'].pct_change().dropna()
+                                    if len(daily_returns) > 1:
+                                        sharpe_ratio = daily_returns.mean() / daily_returns.std() * (252**0.5) if daily_returns.std() != 0 else 0
+                                        st.write(f"• Volatility: {volatility:.2f}%")
+                                        st.write(f"• Sharpe Ratio: {sharpe_ratio:.2f}")
+                                        max_drawdown = ((df_portfolio['value'].cummax() - df_portfolio['value']) / df_portfolio['value'].cummax()).max() * 100
+                                        st.write(f"• Max Drawdown: {max_drawdown:.2f}%")
+                                
+                            else:
+                                st.warning(f"Unable to generate {chart_period} portfolio chart. This may be due to insufficient historical data or market closures.")
+                        
+                        except Exception as e:
+                            st.error(f"Error generating interactive portfolio chart: {str(e)}")
+                            st.info("Try selecting a different time period or check your internet connection.")
+                
+                # Real-time update controls (moved below chart to prevent excessive API usage)
+                st.markdown("---")
+                st.subheader("🔄 Real-Time Updates")
+                
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    auto_refresh = st.checkbox("🔄 Auto-refresh portfolio", value=False, key="auto_refresh_portfolio")
+                with col2:
+                    if auto_refresh:
+                        refresh_interval = st.selectbox(
+                            "Update every:",
+                            options=[30, 60, 300, 900],
+                            format_func=lambda x: f"{x//60}m {x%60}s" if x >= 60 else f"{x}s",
+                            index=1,  # Default to 60 seconds
+                            key="refresh_interval"
+                        )
+                    else:
+                        refresh_interval = 60
+                with col3:
+                    if st.button("🔄 Refresh Now", key="manual_refresh"):
+                        st.rerun()
+                
+                # Auto-refresh mechanism
+                if auto_refresh and st.session_state.portfolio_holdings:
+                    import time
+                    
+                    # Initialize last refresh time
+                    if 'last_portfolio_refresh' not in st.session_state:
+                        st.session_state.last_portfolio_refresh = time.time()
+                    
+                    current_time = time.time()
+                    time_since_refresh = current_time - st.session_state.last_portfolio_refresh
+                    
+                    # Show countdown
+                    remaining_time = max(0, refresh_interval - int(time_since_refresh))
+                    
+                    if remaining_time > 0:
+                        st.info(f"🕐 Next update in {remaining_time} seconds...")
+                        # Auto-refresh when time is up
+                        time.sleep(1)  # Wait 1 second then rerun to update countdown
+                        st.rerun()
+                    else:
+                        st.info("🔄 Updating portfolio...")
+                        st.session_state.last_portfolio_refresh = current_time
+                        st.rerun()
+                
+            else:
+                st.info("No holdings added yet. Add your first stock above to get started!")
+
+    with tab4:
         st.subheader("Analytics Dashboard")
         
         # Get actual user activity data
@@ -902,58 +2056,6 @@ else:
         with col2:
             st.metric("Stock Searches", total_searches, help="Individual stocks analyzed")
         
-        # Activity over time chart
-        if history_data:
-            st.subheader("📈 Your Activity Trends")
-            
-            # Group activity by date
-            activity_by_date = {}
-            for h in history_data:
-                date = h['Time'].date()
-                if date not in activity_by_date:
-                    activity_by_date[date] = {'scans': 0, 'searches': 0}
-                
-                # Map activity types correctly
-                if h['Type'] == 'scan':
-                    activity_by_date[date]['scans'] += 1
-                elif h['Type'] == 'search':
-                    activity_by_date[date]['searches'] += 1
-            
-            # Create DataFrame for chart
-            chart_data = []
-            for date, counts in activity_by_date.items():
-                chart_data.append({
-                    'Date': date,
-                    'Market Scans': counts['scans'],
-                    'Stock Searches': counts['searches']
-                })
-            
-            if chart_data:
-                chart_df = pd.DataFrame(chart_data)
-                chart_df = chart_df.melt('Date', var_name='Activity Type', value_name='Count')
-                
-                activity_chart = alt.Chart(chart_df).mark_bar().encode(
-                    x=alt.X('Date:T', title='Date'),
-                    y=alt.Y('Count:Q', title='Number of Activities'),
-                    color=alt.Color('Activity Type:N', 
-                                   scale=alt.Scale(range=['#00D564', '#10b981']),
-                                   legend=alt.Legend(title="Activity Type")),
-                    tooltip=['Date:T', 'Activity Type:N', 'Count:Q']
-                ).properties(
-                    height=300,
-                    title='Daily Activity Overview'
-                ).configure_view(
-                    strokeWidth=0
-                ).configure_axis(
-                    grid=False,
-                    labelColor='#9ca3af',
-                    titleColor='#9ca3af'
-                ).configure_title(
-                    fontSize=16,
-                    color='#00D564'
-                )
-                
-                st.altair_chart(activity_chart, use_container_width=True)
         
         # Recent Activity with better formatting
         st.subheader("🕒 Recent Activity")
@@ -996,11 +2098,11 @@ else:
         else:
             st.info("No activity yet. Start by scanning the market or analyzing individual stocks!")
         
-        # Top searched stocks
+        # Enhanced Top Searched Stocks Section
         if history_data:
             searches = [h for h in history_data if h['Type'] == 'search' and h['Query']]
             if searches:
-                st.subheader("🔥 Your Most Searched Stocks")
+                st.subheader("🔥 Most Analyzed Stocks")
                 
                 # Count searches by stock
                 stock_counts = {}
@@ -1011,24 +2113,44 @@ else:
                     if isinstance(search['Result'], int):
                         stock_scores[ticker] = search['Result']
                 
-                # Create top stocks display
+                # Create top stocks display with better styling
                 top_stocks = sorted(stock_counts.items(), key=lambda x: x[1], reverse=True)[:5]
                 
-                for ticker, count in top_stocks:
+                for i, (ticker, count) in enumerate(top_stocks):
                     score = stock_scores.get(ticker, 'N/A')
-                    col1, col2, col3 = st.columns([2, 1, 1])
-                    with col1:
-                        st.write(f"**{ticker}**")
-                    with col2:
-                        st.write(f"{count} searches")
-                    with col3:
-                        if score != 'N/A':
-                            st.write(f"Score: {score}/100")
+                    
+                    # Determine score color
+                    if score != 'N/A':
+                        if score >= 70:
+                            score_color = '#00D564'  # Green
+                        elif score >= 50:
+                            score_color = '#f59e0b'  # Yellow
                         else:
-                            st.write("Score: N/A")
+                            score_color = '#ef4444'  # Red
+                        score_text = f"{score}/100"
+                    else:
+                        score_color = '#9ca3af'
+                        score_text = "N/A"
+                    
+                    st.markdown(f"""
+                    <div class='stock-card' style='padding: 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;'>
+                        <div style='display: flex; align-items: center; gap: 1rem;'>
+                            <div style='background-color: #374151; color: #00D564; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.8rem;'>
+                                #{i+1}
+                            </div>
+                            <div>
+                                <div style='font-weight: 600; color: #fafafa; font-size: 1.1rem;'>{ticker}</div>
+                                <div style='color: #9ca3af; font-size: 0.85rem;'>{count} analysis{'' if count == 1 else 'es'}</div>
+                            </div>
+                        </div>
+                        <div style='text-align: right;'>
+                            <div style='color: {score_color}; font-weight: 600;'>Score: {score_text}</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
         
 
-    with tab4:
+    with tab5:
         st.subheader("Account Settings")
         st.markdown("---")
         
@@ -1038,54 +2160,108 @@ else:
             st.markdown("### Profile Information")
             st.markdown("")
             
+            # Safety check for username
+            if not st.session_state.username:
+                st.error("Session error. Please log in again.")
+                st.stop()
+            
+            st.text_input("Username", value=st.session_state.username, disabled=True, help="Username cannot be changed for security reasons")
+            
+            # Safety check for user existence
+            if st.session_state.username not in config['credentials']['usernames']:
+                st.error("User not found. Please log in again.")
+                st.stop()
+                
             current_email = config['credentials']['usernames'][st.session_state.username].get('email', '')
-            new_email = st.text_input("Email Address", value=current_email)
+            st.text_input("Email Address", value=current_email, disabled=True, help="Email address cannot be changed for security reasons")
             
             st.markdown("")
             st.markdown("### Change Password")
             st.markdown("")
             
-            current_password = st.text_input("Current Password", type="password")
-            new_password = st.text_input("New Password", type="password")
-            confirm_password = st.text_input("Confirm New Password", type="password")
+            current_password = st.text_input("Current Password", type="password", help="Enter your current password to change it")
+            new_password = st.text_input("New Password", type="password", help="Enter your new password")
+            confirm_password = st.text_input("Confirm New Password", type="password", help="Confirm your new password")
             
             st.markdown("")
-            if st.button("Update Profile", type="primary"):
-                updates_made = False
-                
-                # Update email
-                if new_email != current_email:
-                    config['credentials']['usernames'][st.session_state.username]['email'] = new_email
-                    updates_made = True
-                
-                # Update password
-                if new_password and confirm_password:
-                    if new_password == confirm_password:
-                        # Verify current password first
-                        try:
-                            # Check if current password matches stored password
-                            stored_password = config['credentials']['usernames'][st.session_state.username]['password']
-                            
-                            # Use the authenticator's verify method
-                            if bcrypt.checkpw(current_password.encode('utf-8'), stored_password.encode('utf-8')):
-                                # Hash the new password
-                                new_hashed_password = stauth.Hasher([new_password]).generate()[0]
-                                config['credentials']['usernames'][st.session_state.username]['password'] = new_hashed_password
-                                updates_made = True
-                                st.success("Password updated successfully!")
-                            else:
-                                st.error("Current password is incorrect")
-                        except Exception as e:
-                            st.error(f"Error updating password: {str(e)}")
+            col_update, col_forgot = st.columns([1, 1])
+            
+            with col_update:
+                if st.button("Update Password", type="primary"):
+                    # Update password
+                    if new_password and confirm_password and current_password:
+                        if new_password == confirm_password:
+                            # Verify current password first
+                            try:
+                                # Safety check for username
+                                if not st.session_state.username or st.session_state.username not in config['credentials']['usernames']:
+                                    st.error("Session error. Please log in again.")
+                                    st.stop()
+                                
+                                # Check if current password matches stored password
+                                stored_password = config['credentials']['usernames'][st.session_state.username]['password']
+                                
+                                if bcrypt.checkpw(current_password.encode('utf-8'), stored_password.encode('utf-8')):
+                                    # Hash the new password
+                                    new_hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                                    config['credentials']['usernames'][st.session_state.username]['password'] = new_hashed_password
+                                    
+                                    # Save config
+                                    with open('config.yaml', 'w') as file:
+                                        yaml.dump(config, file, default_flow_style=False)
+                                    
+                                    st.success("Password updated successfully!")
+                                else:
+                                    st.error("Current password is incorrect")
+                            except Exception as e:
+                                st.error(f"Error updating password: {str(e)}")
+                        else:
+                            st.error("New passwords don't match")
                     else:
-                        st.error("New passwords don't match")
-                elif new_password or confirm_password:
-                    st.error("Please fill in both new password fields")
-                
-                if updates_made:
-                    with open('config.yaml', 'w') as file:
-                        yaml.dump(config, file, default_flow_style=False)
-                    st.success("Profile updated successfully!")
+                        st.error("Please fill in all password fields")
+            
+            with col_forgot:
+                if st.button("Forgot Password?", type="secondary"):
+                    try:
+                        # Safety check for username
+                        if not st.session_state.username or st.session_state.username not in config['credentials']['usernames']:
+                            st.error("Session error. Please log in again.")
+                            st.stop()
+                        
+                        # Generate secure reset token
+                        import random
+                        import string
+                        import time
+                        reset_token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+                        
+                        # Store reset token with expiration (1 hour)
+                        if 'reset_tokens' not in config:
+                            config['reset_tokens'] = {}
+                        config['reset_tokens'][reset_token] = {
+                            'username': st.session_state.username,
+                            'expires': time.time() + 3600  # 1 hour from now
+                        }
+                        
+                        # Save config
+                        with open('config.yaml', 'w') as file:
+                            yaml.dump(config, file, default_flow_style=False)
+                        
+                        # Get user details
+                        user_name = config['credentials']['usernames'][st.session_state.username].get('name', st.session_state.username)
+                        
+                        # Send password reset email using the new email service
+                        email_sent = email_service.send_password_reset_email(current_email, user_name, reset_token)
+                        
+                        if email_sent:
+                            st.success("✅ Password reset email sent! Check your inbox for the reset link.")
+                        else:
+                            st.error("❌ Failed to send email. Please try again or contact support.")
+                        
+                    except Exception as e:
+                        st.error(f"Error resetting password: {str(e)}")
+            
+            st.markdown("")
+            st.info("💡 **Tip:** If you forgot your current password, use the 'Forgot Password?' button to receive a temporary password via email.")
         
         with col2:
             st.markdown("### Subscription Status")
@@ -1098,7 +2274,9 @@ else:
                 st.markdown("")
                 if st.button("Cancel Subscription", type="secondary"):
                     st.session_state.subscribed = False
+                    save_session(st.session_state.username)  # Save subscription status
                     st.info("Subscription cancelled")
+                    st.rerun()
             else:
                 st.warning("⚠️ Free Account")
                 st.markdown("")
@@ -1112,7 +2290,95 @@ else:
                 
                 if st.button("Upgrade to Pro - $29/month", type="primary"):
                     st.session_state.subscribed = True  # Demo
-                    st.success("Welcome to Pro!")
+                    save_session(st.session_state.username)  # Save subscription status
+                    st.success("🚀 Pro subscription activated and saved!")
+                    st.rerun()
+            
+            st.markdown("")
+            st.markdown("### Account Actions")
+            st.markdown("")
+            
+            if st.button("🚪 Logout", type="secondary", use_container_width=True):
+                # Clear session state
+                st.session_state.authentication_status = False
+                st.session_state.name = None
+                st.session_state.username = None
+                st.session_state.free_scan_used = False
+                st.session_state.free_search_used = False
+                
+                # Clear session file
+                clear_session()
+                
+                st.rerun()
+            
+            st.markdown("")
+            
+            # Delete account section with confirmation
+            if 'show_delete_confirmation' not in st.session_state:
+                st.session_state.show_delete_confirmation = False
+            
+            if not st.session_state.show_delete_confirmation:
+                # Initial delete button with red styling
+                st.markdown('<div class="delete-button">', unsafe_allow_html=True)
+                if st.button("🗑️ Delete Account", type="secondary", use_container_width=True, 
+                           help="Permanently delete your account and all associated data"):
+                    st.session_state.show_delete_confirmation = True
+                    st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                # Confirmation dialog
+                st.markdown("⚠️ **Are you sure you want to delete your account?**")
+                st.markdown("This action cannot be undone and will permanently delete:")
+                st.markdown("• Your account and login credentials")
+                st.markdown("• All portfolio data and settings")
+                st.markdown("• All saved preferences and history")
+                st.markdown("")
+                
+                col_confirm, col_cancel = st.columns([1, 1])
+                
+                with col_confirm:
+                    if st.button("✅ Yes, Delete My Account", type="primary", use_container_width=True):
+                        try:
+                            # Safety check for username
+                            if not st.session_state.username or st.session_state.username not in config['credentials']['usernames']:
+                                st.error("Session error. Please log in again.")
+                                st.stop()
+                            
+                            # Delete user from config
+                            del config['credentials']['usernames'][st.session_state.username]
+                            
+                            # Save updated config
+                            with open('config.yaml', 'w') as file:
+                                yaml.dump(config, file, default_flow_style=False)
+                            
+                            # Delete session file if it exists
+                            session_file = f"session_{st.session_state.username}.json"
+                            if os.path.exists(session_file):
+                                os.remove(session_file)
+                            
+                            # Delete portfolio data if it exists
+                            portfolio_file = f"portfolio_{st.session_state.username}.json"
+                            if os.path.exists(portfolio_file):
+                                os.remove(portfolio_file)
+                            
+                            # Clear session state
+                            for key in list(st.session_state.keys()):
+                                del st.session_state[key]
+                            
+                            st.success("✅ Your account has been permanently deleted.")
+                            st.info("You will be redirected to the login page.")
+                            time.sleep(2)
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"Error deleting account: {str(e)}")
+                            st.session_state.show_delete_confirmation = False
+                            st.rerun()
+                
+                with col_cancel:
+                    if st.button("❌ Cancel", type="secondary", use_container_width=True):
+                        st.session_state.show_delete_confirmation = False
+                        st.rerun()
 
 # Footer with disclaimers
 st.markdown("""
@@ -1127,14 +2393,25 @@ st.markdown("""
         <li>Always do your own research and verify data independently before making investment decisions</li>
     </ul>
     <p style='color: #6b7280; margin-top: 1rem; font-size: 0.875rem;'>
-        Squeeze AI uses advanced algorithms to analyze short interest data, borrow rates, and market momentum. 
+        Squeeze Ai uses advanced algorithms to analyze short interest data, borrow rates, and market momentum. 
         Our scores are for educational and informational purposes only.
     </p>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("""
+# Footer with clickable text using HTML and session state
+footer_html = """
 <div style='text-align: center; color: #6b7280; padding: 2rem 0;'>
-    <small>© 2024 Squeeze AI | <a href='#' style='color: #00D564;'>Terms</a> | <a href='#' style='color: #00D564;'>Privacy</a> | <a href='#' style='color: #00D564;'>Contact</a></small>
+    <small>© 2025 Squeeze Ai | 
+    <a href="?page=terms" style='color: #00D564; text-decoration: none; cursor: pointer;' 
+       onclick="window.location.href='?page=terms'; return false;">Terms</a> | 
+    <a href="?page=privacy" style='color: #00D564; text-decoration: none; cursor: pointer;'
+       onclick="window.location.href='?page=privacy'; return false;">Privacy</a> | 
+    <a href="?page=contact" style='color: #00D564; text-decoration: none; cursor: pointer;'
+       onclick="window.location.href='?page=contact'; return false;">Contact</a>
+    </small>
 </div>
-""", unsafe_allow_html=True)
+"""
+
+st.markdown(footer_html, unsafe_allow_html=True)
+

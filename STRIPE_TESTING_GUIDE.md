@@ -3,8 +3,8 @@
 ## ✅ Setup Complete
 
 Your app is now configured for testing with Stripe test keys:
-- ✅ **Test Secret Key**: `sk_test_51RkvPvGRjwgoUS3I...`
-- ✅ **Test Publishable Key**: `pk_test_51RkvPvGRjwgoUS3I...`
+- ✅ **Test Secret Key**: `sk_test_[your_key_here]`
+- ✅ **Test Publishable Key**: `pk_test_[your_key_here]`
 
 ## 🔄 Next Steps
 

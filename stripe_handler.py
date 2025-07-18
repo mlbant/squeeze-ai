@@ -34,7 +34,7 @@ class StripeHandler:
                     'price_data': {
                         'currency': 'usd',
                         'product_data': {
-                            'name': 'Squeeze AI Pro',
+                            'name': 'Squeeze Ai Pro',
                             'description': 'Unlimited squeeze analysis, real-time alerts, and premium features',
                             'images': ['https://example.com/logo.png'],
                         },

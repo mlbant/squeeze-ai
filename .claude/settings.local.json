@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(del debug_errors.py)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(taskkill:*)",
+      "Bash(wmic process where \"ProcessId=29728\" call terminate)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(del test_email.py)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(cp:*)",
+      "Bash(grep:*)",
+      "Bash(git pull:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": []
+  }
+}

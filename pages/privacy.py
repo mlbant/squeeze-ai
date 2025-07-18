@@ -1,11 +1,5 @@
 import streamlit as st
 
-st.set_page_config(
-    page_title="Privacy Policy - Squeeze AI",
-    page_icon="🔒",
-    layout="wide"
-)
-
 # Enhanced dark mode styling
 st.markdown("""
 <style>
@@ -35,8 +29,25 @@ st.markdown("""
         display: inline-block;
         margin-bottom: 2rem;
     }
+    .stButton > button { 
+        background-color: #00D564; 
+        color: #0e1117; 
+        border: none; 
+        border-radius: 8px; 
+        padding: 0.5rem 1.5rem; 
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .stButton > button:hover {
+        background-color: #00E56F;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 213, 100, 0.3);
+    }
 </style>
 """, unsafe_allow_html=True)
+
+if st.button("← Back to Home", type="secondary"):
+    st.switch_page("app.py")
 
 st.title("🔒 Privacy Policy")
 st.markdown("*Last updated: January 15, 2025*")
@@ -124,7 +135,7 @@ st.markdown("""
 <li><strong>Restriction:</strong> Limit how we process your information</li>
 </ul>
 
-<p>To exercise these rights, contact us at privacy@squeezeai.com</p>
+<p>To exercise these rights, contact us at support@squeeze-ai.com</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -177,7 +188,7 @@ st.markdown("""
 st.markdown("""
 <div class="privacy-section">
 <h2>9. Children's Privacy</h2>
-<p>Squeeze AI is not intended for users under 18 years old. We do not knowingly collect personal information from children. If we discover we have collected information from a child, we will delete it immediately.</p>
+<p>Squeeze Ai is not intended for users under 18 years old. We do not knowingly collect personal information from children. If we discover we have collected information from a child, we will delete it immediately.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -188,7 +199,7 @@ st.markdown("""
 <ul>
 <li><strong>Stripe:</strong> Payment processing (see Stripe's privacy policy)</li>
 <li><strong>Yahoo Finance:</strong> Market data (public information only)</li>
-<li><strong>xAI:</strong> AI analysis (anonymized data only)</li>
+<li><strong>xAI:</strong> Ai analysis (anonymized data only)</li>
 </ul>
 <p>These services have their own privacy policies and practices.</p>
 </div>
@@ -215,7 +226,7 @@ st.markdown("""
 <li>Legal basis for processing (legitimate interest, consent, contract)</li>
 <li>Right to object to processing</li>
 <li>Right to lodge complaints with supervisory authorities</li>
-<li>Data Protection Officer contact: dpo@squeezeai.com</li>
+<li>Data Protection Officer contact: support@squeeze-ai.com</li>
 </ul>
 </div>
 """, unsafe_allow_html=True)
@@ -238,13 +249,13 @@ st.markdown("""
 <h2>14. Contact Us</h2>
 <p>For privacy-related questions or requests:</p>
 <ul>
-<li><strong>Email:</strong> privacy@squeezeai.com</li>
+<li><strong>Email:</strong> support@squeeze-ai.com</li>
 <li><strong>Contact Form:</strong> <a href="/contact" style="color: #00D564;">Contact Us</a></li>
-<li><strong>Mail:</strong> Squeeze AI Privacy Team, [Address]</li>
+<li><strong>Mail:</strong> Squeeze Ai Privacy Team, [Address]</li>
 </ul>
 <p>We'll respond to privacy requests within 30 days.</p>
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.markdown("© 2025 Squeeze AI. All rights reserved.")
+st.markdown("© 2025 Squeeze Ai. All rights reserved.")

@@ -1,10 +1,5 @@
 import streamlit as st
 
-st.set_page_config(
-    page_title="Terms of Service - Squeeze AI",
-    page_icon="📋",
-    layout="wide"
-)
 
 # Enhanced dark mode styling
 st.markdown("""
@@ -35,8 +30,25 @@ st.markdown("""
         display: inline-block;
         margin-bottom: 2rem;
     }
+    .stButton > button { 
+        background-color: #00D564; 
+        color: #0e1117; 
+        border: none; 
+        border-radius: 8px; 
+        padding: 0.5rem 1.5rem; 
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .stButton > button:hover {
+        background-color: #00E56F;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 213, 100, 0.3);
+    }
 </style>
 """, unsafe_allow_html=True)
+
+if st.button("← Back to Home", type="secondary"):
+    st.switch_page("app.py")
 
 st.title("📋 Terms of Service")
 st.markdown("*Last updated: January 15, 2025*")
@@ -44,28 +56,28 @@ st.markdown("*Last updated: January 15, 2025*")
 st.markdown("""
 <div class="terms-section">
 <h2>1. Acceptance of Terms</h2>
-<p>By accessing and using Squeeze AI ("the Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.</p>
+<p>By accessing and using Squeeze Ai ("the Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.</p>
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
 <div class="terms-section">
 <h2>2. Description of Service</h2>
-<p>Squeeze AI is a financial analysis platform that provides:</p>
+<p>Squeeze Ai is a financial analysis platform that provides:</p>
 <ul>
 <li>Stock squeeze potential analysis and scoring</li>
 <li>Market data visualization and charts</li>
 <li>Educational content about short squeeze mechanics</li>
 <li>Historical price and volume data</li>
 </ul>
-<p><strong>IMPORTANT:</strong> Squeeze AI is for educational and informational purposes only. It is NOT investment advice.</p>
+<p><strong>IMPORTANT:</strong> Squeeze Ai is for educational and informational purposes only. It is NOT investment advice.</p>
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
 <div class="terms-section">
 <h2>3. Investment Disclaimer</h2>
-<p><strong>NOT INVESTMENT ADVICE:</strong> The information provided by Squeeze AI does not constitute investment advice, financial advice, trading advice, or any other sort of advice. You should not treat any of the website's content as such.</p>
+<p><strong>NOT INVESTMENT ADVICE:</strong> The information provided by Squeeze Ai does not constitute investment advice, financial advice, trading advice, or any other sort of advice. You should not treat any of the website's content as such.</p>
 <p><strong>DO YOUR OWN RESEARCH:</strong> Before making any investment decisions, you should conduct your own research and consult with qualified financial advisors.</p>
 <p><strong>HIGH RISK:</strong> Short squeeze investments are extremely high-risk and volatile. You may lose all of your investment.</p>
 </div>
@@ -115,7 +127,7 @@ st.markdown("""
 st.markdown("""
 <div class="terms-section">
 <h2>7. Limitation of Liability</h2>
-<p>Squeeze AI and its operators shall not be liable for:</p>
+<p>Squeeze Ai and its operators shall not be liable for:</p>
 <ul>
 <li>Any investment losses or financial damages</li>
 <li>Decisions made based on information from our platform</li>
@@ -130,14 +142,14 @@ st.markdown("""
 st.markdown("""
 <div class="terms-section">
 <h2>8. Privacy and Data</h2>
-<p>Your privacy is important to us. Please review our <a href="/privacy" style="color: #00D564;">Privacy Policy</a> to understand how we collect, use, and protect your information.</p>
+<p>Your privacy is important to us. Please review our <span style="color: #00D564;">Privacy Policy</span> (available in sidebar navigation) to understand how we collect, use, and protect your information.</p>
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
 <div class="terms-section">
 <h2>9. Prohibited Uses</h2>
-<p>You may not use Squeeze AI to:</p>
+<p>You may not use Squeeze Ai to:</p>
 <ul>
 <li>Engage in market manipulation or pump-and-dump schemes</li>
 <li>Distribute malware or harmful code</li>
@@ -173,8 +185,8 @@ st.markdown("""
 <h2>12. Contact Information</h2>
 <p>If you have questions about these Terms of Service, please contact us:</p>
 <ul>
-<li>Email: legal@squeezeai.com</li>
-<li>Contact Form: <a href="/contact" style="color: #00D564;">Contact Us</a></li>
+<li>Email: support@squeeze-ai.com</li>
+<li>Contact Form: <span style="color: #00D564;">Contact Us</span> (available in sidebar navigation)</li>
 </ul>
 </div>
 """, unsafe_allow_html=True)
@@ -187,4 +199,4 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.markdown("© 2025 Squeeze AI. All rights reserved.")
+st.markdown("© 2025 Squeeze Ai. All rights reserved.")

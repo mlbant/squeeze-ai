@@ -1,0 +1,17 @@
+cookie:
+  expiry_days: 30
+  key: random_signature_key_12345
+  name: squeeze_ai_cookie
+credentials:
+  usernames:
+    example_user:
+      email: user@example.com
+      failed_login_attempts: 0
+      first_name: Example
+      last_name: User
+      logged_in: false
+      password: $2b$12$example_hashed_password_here
+      roles: null
+preauthorized:
+  emails: []
+reset_tokens: {}
