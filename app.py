@@ -348,14 +348,31 @@ def clear_session():
 session_data = load_session()
 st.write(f"DEBUG: Session data loaded: {session_data is not None}")
 st.write(f"DEBUG: Current authentication_status: {st.session_state.get('authentication_status', 'Not set')}")
+st.write(f"DEBUG: Current authenticated: {st.session_state.get('authenticated', 'Not set')}")
 st.write(f"DEBUG: Current username: {st.session_state.get('username', 'Not set')}")
 st.write(f"DEBUG: Current subscribed: {st.session_state.get('subscribed', 'Not set')}")
 st.write(f"DEBUG: Session state keys: {list(st.session_state.keys())}")
 
-# Force save session on every page load if user is logged in
-if st.session_state.get('authentication_status') and st.session_state.get('username'):
-    st.write(f"DEBUG: User is logged in, forcing session save")
+# Check if there's a mismatch between authenticated and authentication_status
+if st.session_state.get('authenticated') and not st.session_state.get('authentication_status'):
+    st.write(f"DEBUG: MISMATCH - authenticated=True but authentication_status=False")
+    st.session_state.authentication_status = True
+    st.write(f"DEBUG: Fixed authentication_status to True")
+
+# Check if user is actually logged in but authentication_status is wrong
+if st.session_state.get('username') and st.session_state.get('username') != 'Not set':
+    st.write(f"DEBUG: Username is set to: {st.session_state.username}")
+    
+    # Fix authentication_status if it's wrong
+    if not st.session_state.get('authentication_status'):
+        st.write(f"DEBUG: Fixing authentication_status from False to True")
+        st.session_state.authentication_status = True
+    
+    # Force save session
+    st.write(f"DEBUG: Forcing session save for user: {st.session_state.username}")
     save_session(st.session_state.username)
+else:
+    st.write(f"DEBUG: No username set, user needs to log in")
 
 # Safe session restoration with proper None checks
 if session_data and isinstance(session_data, dict):
