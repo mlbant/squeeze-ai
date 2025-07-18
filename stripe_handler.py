@@ -13,6 +13,18 @@ class StripeHandler:
         self.db = UserDatabase()
         self.webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET', '')
     
+    def _get_domain_url(self):
+        \"\"\"Get the appropriate domain URL for redirects\"\"\"
+        # Check environment variable first
+        if os.getenv('ENVIRONMENT') == 'production':
+            return 'https://squeeze-ai.com'
+        # Check if we're on Render
+        elif os.getenv('RENDER'):
+            return 'https://squeeze-ai.onrender.com'
+        # Default to localhost for development
+        else:
+            return 'http://localhost:8501'
+    
     def create_checkout_session(self, user_id, email, success_url, cancel_url):
         """Create Stripe checkout session"""
         try:
@@ -77,7 +89,7 @@ class StripeHandler:
             # Create portal session
             session = stripe.billing_portal.Session.create(
                 customer=sub['stripe_customer_id'],
-                return_url='http://localhost:8501/dashboard'
+                return_url=self._get_domain_url()
             )
             
             return session
