@@ -353,6 +353,18 @@ if 'subscribed' not in st.session_state:
 
 # Check for URL parameters for navigation
 query_params = st.query_params
+
+# Handle successful subscription from Stripe redirect
+if 'subscribed' in query_params and query_params['subscribed'] == 'true':
+    if 'username' in st.session_state:
+        st.session_state.subscribed = True
+        save_session(st.session_state.username)
+        st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
+        st.info("✅ You now have access to all premium features!")
+        # Clear the URL parameter
+        st.query_params.clear()
+        st.rerun()
+
 if 'page' in query_params:
     page = query_params['page']
     if page == 'terms':
@@ -1117,30 +1129,21 @@ else:
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        if st.button("🔓 Unlock Pro Access - $29/month", type="primary"):
+                        if st.button("🔓 Unlock Pro Access - $29/month (14-day FREE trial)", type="primary"):
                             # Create Stripe session
                             try:
-                                session = stripe.checkout.Session.create(
-                                    payment_method_types=['card'],
-                                    line_items=[{
-                                        'price_data': {
-                                            'currency': 'usd',
-                                            'product_data': {
-                                                'name': 'Squeeze Ai Pro',
-                                                'description': 'Full access to all squeeze analysis and features'
-                                            },
-                                            'unit_amount': 2900,
-                                            'recurring': {
-                                                'interval': 'month'
-                                            }
-                                        },
-                                        'quantity': 1
-                                    }],
-                                    mode='subscription',
-                                    success_url="http://localhost:8501?subscribed=true",
-                                    cancel_url="http://localhost:8501"
+                                domain = get_current_domain()
+                                session = stripe_handler.create_checkout_session(
+                                    user_id=st.session_state.get('user_id', 1),
+                                    email=st.session_state.get('email', 'user@example.com'),
+                                    success_url=f"{domain}?subscribed=true",
+                                    cancel_url=domain
                                 )
-                                st.markdown(f"[Complete Payment]({session.url})")
+                                if session:
+                                    st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
+                                    st.info("✅ 14-day FREE trial - No charge until trial ends!")
+                                else:
+                                    st.error("Unable to create checkout session")
                             except Exception as e:
                                 st.error(f"Payment setup error: {str(e)}")
                                 st.session_state.subscribed = True  # Demo mode
