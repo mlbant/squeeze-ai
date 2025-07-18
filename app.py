@@ -357,6 +357,7 @@ if st.session_state.get('username') and st.session_state.get('username') != 'Not
 if session_data and isinstance(session_data, dict):
     if not st.session_state.get('authentication_status', False):
         st.session_state.authentication_status = True
+        st.session_state.authenticated = True  # Also set authenticated flag
         st.session_state.username = session_data.get('username', 'Unknown')
         st.session_state.name = session_data.get('name', session_data.get('username', 'User'))
     
@@ -2255,15 +2256,20 @@ else:
             st.markdown("")
             
             if st.button("🚪 Logout", type="secondary", use_container_width=True):
-                # Clear session state
+                # Clear database session first
+                clear_session()
+                
+                # Clear all session state
                 st.session_state.authentication_status = False
+                st.session_state.authenticated = False
                 st.session_state.name = None
                 st.session_state.username = None
                 st.session_state.free_scan_used = False
                 st.session_state.free_search_used = False
                 
-                # Clear session file
-                clear_session()
+                # Clear session ID
+                if 'session_id' in st.session_state:
+                    del st.session_state.session_id
                 
                 st.rerun()
             

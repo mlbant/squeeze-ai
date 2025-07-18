@@ -80,6 +80,8 @@ class SessionManager:
         try:
             db = next(get_db())
             
+            logger.info(f"Looking for session: {session_id}")
+            
             session = db.query(UserSession).filter(
                 UserSession.session_id == session_id,
                 UserSession.is_active == True,
@@ -87,6 +89,7 @@ class SessionManager:
             ).first()
             
             if session:
+                logger.info(f"Session found for user: {session.username}")
                 # Update last activity
                 session.updated_at = datetime.utcnow()
                 db.commit()
@@ -103,6 +106,8 @@ class SessionManager:
                 
                 db.close()
                 return result
+            else:
+                logger.warning(f"Session not found or expired: {session_id}")
             
             db.close()
             return None
