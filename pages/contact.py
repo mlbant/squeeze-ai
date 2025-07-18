@@ -7,9 +7,15 @@ import os
 import dotenv
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from email_service import email_service
 dotenv.load_dotenv()
+
+# Try to import email service safely
+try:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from email_service import email_service
+except ImportError:
+    # Fallback if import fails
+    email_service = None
 
 
 # Enhanced dark mode styling
@@ -65,7 +71,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 if st.button("← Back to Home", type="secondary"):
-    st.switch_page("app.py")
+    try:
+        st.switch_page("app.py")
+    except Exception as e:
+        # Fallback navigation
+        st.rerun()
 
 st.title("📧 Contact Us")
 st.markdown("We'd love to hear from you! Get in touch with our team.")
@@ -116,6 +126,9 @@ with st.form("contact_form"):
         else:
             # Send emails using the email service
             try:
+                if email_service is None:
+                    st.error("❌ Email service is not available. Please contact us directly at support@squeeze-ai.com")
+                    return
                 # Send email to support team
                 support_email_sent = email_service.send_contact_form_email(
                     name, email, subject, message, priority

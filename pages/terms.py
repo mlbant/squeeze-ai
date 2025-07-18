@@ -48,7 +48,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 if st.button("← Back to Home", type="secondary"):
-    st.switch_page("app.py")
+    try:
+        st.switch_page("app.py")
+    except Exception as e:
+        # Fallback navigation
+        st.rerun()
 
 st.title("📋 Terms of Service")
 st.markdown("*Last updated: January 15, 2025*")
