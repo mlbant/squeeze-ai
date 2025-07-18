@@ -380,28 +380,7 @@ if 'reset_token' in query_params:
                 st.error("Please fill in both password fields.")
     st.stop()
 
-# Continue with main app logic
-if True:  # Placeholder for main app logic
-            # Token is valid, show password reset form
-            st.markdown("## Reset Your Password")
-            st.markdown("Enter your new password below:")
-            
-            with st.form("reset_password_form"):
-                new_password = st.text_input("New Password", type="password")
-                confirm_password = st.text_input("Confirm New Password", type="password")
-                
-                if st.form_submit_button("Reset Password"):
-                    if new_password and confirm_password:
-                        if new_password == confirm_password:
-                            if len(new_password) >= 6:
-                                # Hash and save new password
-                                hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-                                config['credentials']['usernames'][token_data['username']]['password'] = hashed_password
-                                
-                                # Remove the used token
-                                del config['reset_tokens'][reset_token]
-                                
-                                # Save config
+# Continue with main app logic after password reset section
                                 with open('config.yaml', 'w') as file:
                                     yaml.dump(config, file, default_flow_style=False)
                                 
@@ -435,6 +414,12 @@ if True:  # Placeholder for main app logic
 
 # Initialize free usage limits if not set by session loading (only when no session data exists)
 if not session_data:
+    if 'free_scan_used' not in st.session_state:
+        st.session_state.free_scan_used = False
+    if 'free_search_used' not in st.session_state:
+        st.session_state.free_search_used = False
+else:
+    # Session data exists, make sure we have default values
     if 'free_scan_used' not in st.session_state:
         st.session_state.free_scan_used = False
     if 'free_search_used' not in st.session_state:
