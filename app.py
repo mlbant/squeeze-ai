@@ -254,7 +254,7 @@ def save_session(username):
         session_data = {
             'username': username,
             'timestamp': time.time(),
-            'name': config['credentials']['usernames'][username].get('name', username),
+            'name': username,  # Use username as name for now
             'subscribed': st.session_state.get('subscribed', False),
             'last_scan_results': st.session_state.get('last_scan_results', None),
             'last_scan_filters': st.session_state.get('last_scan_filters', None),
@@ -281,7 +281,8 @@ def load_session():
             # Check if session is still valid (within 24 hours)
             if time.time() - session_data.get('timestamp', 0) < 86400:
                 username = session_data.get('username')
-                if username in config['credentials']['usernames']:
+                # Check if user exists in PostgreSQL
+                if authenticator.get_user_by_username(username):
                     return session_data
     except:
         pass
@@ -380,37 +381,7 @@ if 'reset_token' in query_params:
                 st.error("Please fill in both password fields.")
     st.stop()
 
-# Continue with main app logic after password reset section
-                                with open('config.yaml', 'w') as file:
-                                    yaml.dump(config, file, default_flow_style=False)
-                                
-                                st.success("✅ Password reset successfully! You can now log in with your new password.")
-                                st.info("Redirecting to login page...")
-                                time.sleep(2)
-                                st.query_params.clear()
-                                st.rerun()
-                            else:
-                                st.error("Password must be at least 6 characters long.")
-                        else:
-                            st.error("Passwords don't match.")
-                    else:
-                        st.error("Please fill in both password fields.")
-            
-            st.stop()  # Don't show the rest of the app
-        else:
-            # Token expired
-            st.error("❌ This password reset link has expired. Please request a new one.")
-            if st.button("Request New Reset Link"):
-                st.query_params.clear()
-                st.rerun()
-            st.stop()
-    else:
-        # Invalid token
-        st.error("❌ Invalid password reset link. Please request a new one.")
-        if st.button("Request New Reset Link"):
-            st.query_params.clear()
-            st.rerun()
-        st.stop()
+# Password reset section complete - continue with main app
 
 # Initialize free usage limits if not set by session loading (only when no session data exists)
 if not session_data:
