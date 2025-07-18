@@ -888,30 +888,6 @@ else:
                         </p>
                     </div>
                     """, unsafe_allow_html=True)
-                
-                # Always show upgrade button for free users
-                if st.button("🚀 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="always_upgrade_top"):
-                    st.write("DEBUG: Always-visible upgrade button clicked!")  # Debug message
-                    try:
-                        domain = get_current_domain()
-                        st.write(f"DEBUG: Domain = {domain}")  # Debug message
-                        session = stripe_handler.create_checkout_session(
-                            user_id=st.session_state.get('user_id', 1),
-                            email=st.session_state.get('email', 'user@example.com'),
-                            success_url=f"{domain}?subscribed=true",
-                            cancel_url=domain
-                        )
-                        if session:
-                            st.write(f"DEBUG: Session created: {session.id}")  # Debug message
-                            st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
-                            st.info("✅ 14-day FREE trial - No charge until trial ends!")
-                        else:
-                            st.error("Unable to create checkout session")
-                    except Exception as e:
-                        st.error(f"Payment setup error: {str(e)}")
-                        import traceback
-                        st.error(f"Debug traceback: {traceback.format_exc()}")
-                
                 else:
                     st.warning("🔍 **No stocks found with your selected filters**")
                     st.markdown(f"""
@@ -934,6 +910,10 @@ else:
         if scan_button_clicked:
             # Check if user is subscribed or if they've used their free scan
             # Note: subscribed status should be loaded from session, not defaulted here
+            
+            # Debug: Show current state
+            st.write(f"DEBUG: subscribed = {st.session_state.subscribed}")
+            st.write(f"DEBUG: free_scan_used = {st.session_state.get('free_scan_used', 'not set')}")
             
             if not st.session_state.subscribed and st.session_state.free_scan_used:
                 # Free user has already used their scan
@@ -1147,6 +1127,7 @@ else:
                 else:
                     # Free preview
                     st.info("🎯 Free Preview: Showing top squeeze candidate only")
+                    st.write(f"DEBUG: In free preview section, stocks count = {len(stocks) if stocks else 0}")
                     if stocks and len(stocks) > 0:
                         stock = stocks[0]
                         st.markdown(f"""
