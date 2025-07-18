@@ -355,20 +355,32 @@ if session_data and isinstance(session_data, dict):
         st.session_state.last_analysis_result = session_data.get('last_analysis_result', None)
     if 'last_analysis_ticker' not in st.session_state:
         st.session_state.last_analysis_ticker = session_data.get('last_analysis_ticker', None)
+    if 'last_analysis_period' not in st.session_state:
+        st.session_state.last_analysis_period = session_data.get('last_analysis_period', None)
+    
+    # Restore free usage limits and portfolio
+    if 'free_scan_used' not in st.session_state:
+        st.session_state.free_scan_used = session_data.get('free_scan_used', False)
+    if 'free_search_used' not in st.session_state:
+        st.session_state.free_search_used = session_data.get('free_search_used', False)
+    if 'portfolio_holdings' not in st.session_state:
+        st.session_state.portfolio_holdings = session_data.get('portfolio_holdings', [])
 else:
     st.write("DEBUG: No session data found - user will need to log in")
     # Initialize default values when no session exists
     if 'subscribed' not in st.session_state:
         st.session_state.subscribed = False
     if 'last_analysis_period' not in st.session_state:
-        st.session_state.last_analysis_period = session_data.get('last_analysis_period', None)
-    # Always load free usage limits from session file to ensure persistence
-    st.session_state.free_scan_used = session_data.get('free_scan_used', False)
-    st.session_state.free_search_used = session_data.get('free_search_used', False)
+        st.session_state.last_analysis_period = None
+    # Initialize free usage limits with default values
+    if 'free_scan_used' not in st.session_state:
+        st.session_state.free_scan_used = False
+    if 'free_search_used' not in st.session_state:
+        st.session_state.free_search_used = False
     
-    # Restore portfolio holdings
+    # Initialize portfolio holdings
     if 'portfolio_holdings' not in st.session_state:
-        st.session_state.portfolio_holdings = session_data.get('portfolio_holdings', [])
+        st.session_state.portfolio_holdings = []
 
 # Initialize subscribed status if not set by session loading
 if 'subscribed' not in st.session_state:
