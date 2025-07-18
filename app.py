@@ -2101,11 +2101,12 @@ else:
             st.text_input("Username", value=st.session_state.username, disabled=True, help="Username cannot be changed for security reasons")
             
             # Safety check for user existence
-            if st.session_state.username not in config['credentials']['usernames']:
+            current_user = authenticator.get_user_by_username(st.session_state.username)
+            if not current_user:
                 st.error("User not found. Please log in again.")
                 st.stop()
                 
-            current_email = config['credentials']['usernames'][st.session_state.username].get('email', '')
+            current_email = current_user.email
             st.text_input("Email Address", value=current_email, disabled=True, help="Email address cannot be changed for security reasons")
             
             st.markdown("")
@@ -2124,25 +2125,15 @@ else:
                     # Update password
                     if new_password and confirm_password and current_password:
                         if new_password == confirm_password:
-                            # Verify current password first
+                            # Use PostgreSQL authentication system
                             try:
-                                # Safety check for username
-                                if not st.session_state.username or st.session_state.username not in config['credentials']['usernames']:
-                                    st.error("Session error. Please log in again.")
-                                    st.stop()
+                                success = authenticator.change_password(
+                                    st.session_state.username, 
+                                    current_password, 
+                                    new_password
+                                )
                                 
-                                # Check if current password matches stored password
-                                stored_password = config['credentials']['usernames'][st.session_state.username]['password']
-                                
-                                if bcrypt.checkpw(current_password.encode('utf-8'), stored_password.encode('utf-8')):
-                                    # Hash the new password
-                                    new_hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-                                    config['credentials']['usernames'][st.session_state.username]['password'] = new_hashed_password
-                                    
-                                    # Save config
-                                    with open('config.yaml', 'w') as file:
-                                        yaml.dump(config, file, default_flow_style=False)
-                                    
+                                if success:
                                     st.success("Password updated successfully!")
                                 else:
                                     st.error("Current password is incorrect")

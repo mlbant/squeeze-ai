@@ -323,6 +323,37 @@ class PostgreSQLAuthenticator:
         except Exception as e:
             logger.error(f"Error getting all users: {e}")
             return []
+    
+    def change_password(self, username: str, current_password: str, new_password: str) -> bool:
+        """Change user password after verifying current password"""
+        try:
+            db = next(get_db())
+            user = db.query(User).filter(User.username == username).first()
+            
+            if not user:
+                db.close()
+                return False
+            
+            # Verify current password
+            if not self.verify_password(current_password, user.password_hash):
+                db.close()
+                return False
+            
+            # Update password
+            user.password_hash = self.hash_password(new_password)
+            user.updated_at = datetime.utcnow()
+            db.commit()
+            db.close()
+            
+            logger.info(f"Password changed successfully for user: {username}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error changing password: {e}")
+            if 'db' in locals():
+                db.rollback()
+                db.close()
+            return False
 
 # Create global authenticator instance
 authenticator = PostgreSQLAuthenticator()
