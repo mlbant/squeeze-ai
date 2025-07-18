@@ -15,7 +15,7 @@ class EmailService:
         self.smtp_port = 587
         self.sender_email = os.getenv("SENDER_EMAIL")  # Your Google Workspace email
         self.sender_password = os.getenv("SENDER_APP_PASSWORD")  # Google Workspace App Password
-        self.support_email = os.getenv("SUPPORT_EMAIL", "support@squeezeai.com")
+        self.support_email = os.getenv("SUPPORT_EMAIL", "support@squeeze-ai.com")
         
     def send_email(self, to_email, subject, html_body, text_body=None):
         """Send an email using Gmail SMTP"""
@@ -89,7 +89,7 @@ class EmailService:
                     </ul>
                     
                     <div style="text-align: center;">
-                        <a href="http://localhost:8501" class="button">Start Analyzing Stocks</a>
+                        <a href="https://squeeze-ai.com" class="button">Start Analyzing Stocks</a>
                     </div>
                     
                     <p>Need help? Reply to this email or contact our support team.</p>
@@ -120,7 +120,7 @@ class EmailService:
         
         Want more? Upgrade to Pro for unlimited access and portfolio tracking.
         
-        Get started: http://localhost:8501
+        Get started: https://squeeze-ai.com
         
         Happy trading!
         The Squeeze Ai Team
@@ -133,7 +133,7 @@ class EmailService:
         subject = "Reset Your Squeeze Ai Password"
         
         # Create reset link (you'll need to implement the reset page)
-        reset_url = f"http://localhost:8501?reset_token={reset_token}"
+        reset_url = f"https://squeeze-ai.com?reset_token={reset_token}"
         
         html_body = f"""
         <!DOCTYPE html>

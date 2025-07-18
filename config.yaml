@@ -5,7 +5,7 @@ cookie:
 credentials:
   usernames:
     mlbant:
-      email: acusumano618@gmail.com
+      email: support@squeeze-ai.com
       failed_login_attempts: 0
       first_name: Anthony
       last_name: Cusumano
@@ -13,7 +13,7 @@ credentials:
       password: $2b$12$6qRHZrg.xyLAO0r4iV4LyeQscvk3559mLlDtKXxgBj6pBmAZ/DG92
       roles: null
     mlbant13:
-      email: acusumano618@googlemail.com
+      email: support@squeeze-ai.com
       failed_login_attempts: 0
       first_name: Anthony
       last_name: Cusumano
