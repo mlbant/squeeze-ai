@@ -8,5 +8,8 @@ if [ -z "$PORT" ]; then
     export PORT=8501
 fi
 
-# Start streamlit
+# Clear the problematic STREAMLIT_SERVER_PORT environment variable
+unset STREAMLIT_SERVER_PORT
+
+# Start streamlit with explicit port
 streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
