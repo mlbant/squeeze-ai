@@ -340,13 +340,13 @@ if 'page' in query_params:
     page = query_params['page']
     if page == 'terms':
         st.query_params.clear()
-        st.switch_page("pages/TERMS.py")
+        st.switch_page("pages/terms.py")
     elif page == 'privacy':
         st.query_params.clear()
-        st.switch_page("pages/PRIVACY.py")
+        st.switch_page("pages/privacy.py")
     elif page == 'contact':
         st.query_params.clear()
-        st.switch_page("pages/CONTACT.py")
+        st.switch_page("pages/contact.py")
 
 # Check for password reset token in URL parameters
 if 'reset_token' in query_params:
