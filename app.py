@@ -265,13 +265,18 @@ import time
 
 def get_session_file_path():
     """Get the path for the session file - use a simple approach that works across refreshes"""
-    # Use a simple file that persists across browser sessions
+    # Use current directory which should be persistent on Render
     # This approach stores the last logged in user session
-    return os.path.join(tempfile.gettempdir(), "squeeze_ai_last_session.json")
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    session_file = os.path.join(current_dir, "squeeze_ai_last_session.json")
+    print(f"DEBUG: Session file path: {session_file}")
+    return session_file
 
 def save_session(username):
     """Save session to file"""
+    print(f"DEBUG: save_session called with username: {username}")
     try:
+        session_file = get_session_file_path()
         session_data = {
             'username': username,
             'timestamp': time.time(),
@@ -286,10 +291,20 @@ def save_session(username):
             'free_search_used': st.session_state.get('free_search_used', False),
             'portfolio_holdings': st.session_state.get('portfolio_holdings', [])
         }
-        with open(get_session_file_path(), 'w') as f:
+        print(f"DEBUG: Saving session to: {session_file}")
+        print(f"DEBUG: Session data: {session_data}")
+        with open(session_file, 'w') as f:
             json.dump(session_data, f)
-    except:
-        pass
+        print(f"DEBUG: Session saved successfully")
+        # Verify the file was created
+        if os.path.exists(session_file):
+            print(f"DEBUG: Session file verified to exist")
+        else:
+            print(f"DEBUG: WARNING: Session file was not created")
+    except Exception as e:
+        print(f"DEBUG: Error saving session: {e}")
+        import traceback
+        traceback.print_exc()
 
 def load_session():
     """Load session from file"""
