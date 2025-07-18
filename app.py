@@ -1007,13 +1007,28 @@ else:
                 """, unsafe_allow_html=True)
                 
                 if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="scan_upgrade"):
-                    # Skip Stripe for now and just activate subscription directly
-                    st.session_state.subscribed = True
-                    save_session(st.session_state.username)
-                    st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
-                    st.info("✅ You now have access to all premium features!")
-                    st.balloons()
-                    st.rerun()
+                    try:
+                        domain = get_current_domain()
+                        session = stripe_handler.create_checkout_session(
+                            user_id=st.session_state.get('user_id', 1),
+                            email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
+                            success_url=f"{domain}?subscribed=true",
+                            cancel_url=domain
+                        )
+                        if session:
+                            st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
+                            st.info("✅ 14-day FREE trial - No charge until trial ends!")
+                        else:
+                            st.error("Unable to create checkout session")
+                    except Exception as e:
+                        st.error(f"Payment setup error: {str(e)}")
+                        import traceback
+                        st.error(f"Debug traceback: {traceback.format_exc()}")
+                        # Fallback to direct activation
+                        st.session_state.subscribed = True
+                        save_session(st.session_state.username)
+                        st.success("🎉 Pro activated! (Stripe unavailable)")
+                        st.rerun()
             else:
                 with st.spinner("Analyzing thousands of stocks..."):
                     stocks = get_squeeze_stocks(filters_str)
@@ -1199,13 +1214,28 @@ else:
                         """, unsafe_allow_html=True)
                         
                         if st.button("🔓 Unlock Pro Access - $29/month (14-day FREE trial)", type="primary"):
-                            # Skip Stripe for now and just activate subscription directly
-                            st.session_state.subscribed = True
-                            save_session(st.session_state.username)
-                            st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
-                            st.info("✅ You now have access to all premium features!")
-                            st.balloons()
-                            st.rerun()
+                            try:
+                                domain = get_current_domain()
+                                session = stripe_handler.create_checkout_session(
+                                    user_id=st.session_state.get('user_id', 1),
+                                    email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
+                                    success_url=f"{domain}?subscribed=true",
+                                    cancel_url=domain
+                                )
+                                if session:
+                                    st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
+                                    st.info("✅ 14-day FREE trial - No charge until trial ends!")
+                                else:
+                                    st.error("Unable to create checkout session")
+                            except Exception as e:
+                                st.error(f"Payment setup error: {str(e)}")
+                                import traceback
+                                st.error(f"Debug traceback: {traceback.format_exc()}")
+                                # Fallback to direct activation
+                                st.session_state.subscribed = True
+                                save_session(st.session_state.username)
+                                st.success("🎉 Pro activated! (Stripe unavailable)")
+                                st.rerun()
                     else:
                         # No stocks found for free preview
                         st.warning("🔍 **No stocks found with your selected filters**")
@@ -1342,13 +1372,28 @@ else:
                     """, unsafe_allow_html=True)
                     
                     if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="search_upgrade"):
-                        # Skip Stripe for now and just activate subscription directly
-                        st.session_state.subscribed = True
-                        save_session(st.session_state.username)
-                        st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
-                        st.info("✅ You now have access to all premium features!")
-                        st.balloons()
-                        st.rerun()
+                        try:
+                            domain = get_current_domain()
+                            session = stripe_handler.create_checkout_session(
+                                user_id=st.session_state.get('user_id', 1),
+                                email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
+                                success_url=f"{domain}?subscribed=true",
+                                cancel_url=domain
+                            )
+                            if session:
+                                st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
+                                st.info("✅ 14-day FREE trial - No charge until trial ends!")
+                            else:
+                                st.error("Unable to create checkout session")
+                        except Exception as e:
+                            st.error(f"Payment setup error: {str(e)}")
+                            import traceback
+                            st.error(f"Debug traceback: {traceback.format_exc()}")
+                            # Fallback to direct activation
+                            st.session_state.subscribed = True
+                            save_session(st.session_state.username)
+                            st.success("🎉 Pro activated! (Stripe unavailable)")
+                            st.rerun()
                 else:
                     with st.spinner(f"Analyzing {ticker.upper()}..."):
                         # Mark free search as used for non-subscribers
