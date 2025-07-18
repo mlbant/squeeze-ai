@@ -17,7 +17,11 @@ import yfinance as yf
 from email_service import email_service
 from postgresql_auth import authenticator
 from stripe_handler import StripeHandler
+from subscription_handler import SubscriptionHandler
 dotenv.load_dotenv()
+
+# Initialize subscription handler
+subscription_handler = SubscriptionHandler()
 
 # Stripe key (test mode)
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
@@ -356,15 +360,25 @@ query_params = st.query_params
 
 # Handle successful subscription from Stripe redirect
 if 'subscribed' in query_params and query_params['subscribed'] == 'true':
-    st.write("DEBUG: Subscription redirect detected!")
+    # Mark subscription as pending activation
+    subscription_handler.mark_subscription_pending()
     
-    # Force reload session data to ensure user is properly authenticated
+    # Clear URL parameters and redirect to clean URL
+    st.query_params.clear()
+    st.markdown("""
+    <script>
+    window.location.href = window.location.href.split('?')[0];
+    </script>
+    """, unsafe_allow_html=True)
+    
+    st.stop()  # Stop execution here
+
+# Check for pending subscription activation
+if subscription_handler.check_and_activate_subscription():
+    # Force reload session data
     session_data = load_session()
-    st.write(f"DEBUG: Session data loaded: {session_data is not None}")
     
     if session_data:
-        st.write(f"DEBUG: Restoring session for user: {session_data['username']}")
-        
         # Restore authentication
         st.session_state.authentication_status = True
         st.session_state.username = session_data['username']
@@ -376,16 +390,13 @@ if 'subscribed' in query_params and query_params['subscribed'] == 'true':
         # Save updated session
         save_session(st.session_state.username)
         
-        st.write("DEBUG: Session saved with subscription activated")
         st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
         st.info("✅ You now have access to all premium features!")
+        
+        st.rerun()
     else:
-        st.write("DEBUG: No session data found")
         st.error("Session expired. Please log in again to activate your subscription.")
-    
-    # Clear the URL parameter
-    st.query_params.clear()
-    st.rerun()
+        subscription_handler.cleanup_old_activations()
 
 if 'page' in query_params:
     page = query_params['page']
