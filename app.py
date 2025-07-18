@@ -309,8 +309,7 @@ if session_data:
     if 'subscribed' not in st.session_state:
         st.session_state.subscribed = session_data.get('subscribed', False)
         # Debug: Show subscription status restoration
-        if session_data.get('subscribed'):
-            st.sidebar.success("🚀 Pro subscription restored from session!")
+        # Removed annoying subscription restoration message
     
     # Restore scan and analysis results
     if 'last_scan_results' not in st.session_state:
