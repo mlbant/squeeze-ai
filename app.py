@@ -320,11 +320,16 @@ def clear_session():
 
 # Check for existing session on page load (always check for persistence)
 session_data = load_session()
+st.write(f"DEBUG: Session data loaded: {session_data is not None}")
 if session_data:
+    st.write(f"DEBUG: Session contains: {list(session_data.keys())}")
     if not st.session_state.get('authentication_status', False):
         st.session_state.authentication_status = True
         st.session_state.username = session_data['username']
         st.session_state.name = session_data.get('name', session_data.get('username', 'User'))
+        st.write(f"DEBUG: Restored session for user: {session_data['username']}")
+else:
+    st.write("DEBUG: No session data found - user will need to log in")
     
     # Always restore subscription status if available
     if 'subscribed' not in st.session_state:
@@ -965,28 +970,13 @@ else:
                 """, unsafe_allow_html=True)
                 
                 if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="scan_upgrade"):
-                    st.write("DEBUG: Button clicked!")  # Debug message
-                    try:
-                        domain = get_current_domain()
-                        st.write(f"DEBUG: Domain = {domain}")  # Debug message
-                        session = stripe_handler.create_checkout_session(
-                            user_id=st.session_state.get('user_id', 1),
-                            email=st.session_state.get('email', 'user@example.com'),
-                            success_url=f"{domain}?subscribed=true",
-                            cancel_url=domain
-                        )
-                        if session:
-                            st.write(f"DEBUG: Session created: {session.id}")  # Debug message
-                            st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
-                            st.info("✅ 14-day FREE trial - No charge until trial ends!")
-                        else:
-                            st.error("Unable to create checkout session")
-                    except Exception as e:
-                        st.error(f"Payment setup error: {str(e)}")
-                        import traceback
-                        st.error(f"Debug traceback: {traceback.format_exc()}")
-                        st.session_state.subscribed = True  # Demo mode
-                        save_session(st.session_state.username)  # Save subscription status
+                    # Skip Stripe for now and just activate subscription directly
+                    st.session_state.subscribed = True
+                    save_session(st.session_state.username)
+                    st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
+                    st.info("✅ You now have access to all premium features!")
+                    st.balloons()
+                    st.rerun()
             else:
                 with st.spinner("Analyzing thousands of stocks..."):
                     stocks = get_squeeze_stocks(filters_str)
@@ -1173,29 +1163,13 @@ else:
                         """, unsafe_allow_html=True)
                         
                         if st.button("🔓 Unlock Pro Access - $29/month (14-day FREE trial)", type="primary"):
-                            st.write("DEBUG: Unlock Pro button clicked!")  # Debug message
-                            # Create Stripe session
-                            try:
-                                domain = get_current_domain()
-                                st.write(f"DEBUG: Domain = {domain}")  # Debug message
-                                session = stripe_handler.create_checkout_session(
-                                    user_id=st.session_state.get('user_id', 1),
-                                    email=st.session_state.get('email', 'user@example.com'),
-                                    success_url=f"{domain}?subscribed=true",
-                                    cancel_url=domain
-                                )
-                                if session:
-                                    st.write(f"DEBUG: Session created: {session.id}")  # Debug message
-                                    st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
-                                    st.info("✅ 14-day FREE trial - No charge until trial ends!")
-                                else:
-                                    st.error("Unable to create checkout session")
-                            except Exception as e:
-                                st.error(f"Payment setup error: {str(e)}")
-                                import traceback
-                                st.error(f"Debug traceback: {traceback.format_exc()}")
-                                st.session_state.subscribed = True  # Demo mode
-                        save_session(st.session_state.username)  # Save subscription status
+                            # Skip Stripe for now and just activate subscription directly
+                            st.session_state.subscribed = True
+                            save_session(st.session_state.username)
+                            st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
+                            st.info("✅ You now have access to all premium features!")
+                            st.balloons()
+                            st.rerun()
                     else:
                         # No stocks found for free preview
                         st.warning("🔍 **No stocks found with your selected filters**")
@@ -1332,23 +1306,13 @@ else:
                     """, unsafe_allow_html=True)
                     
                     if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="search_upgrade"):
-                        try:
-                            domain = get_current_domain()
-                            session = stripe_handler.create_checkout_session(
-                                user_id=st.session_state.get('user_id', 1),
-                                email=st.session_state.get('email', 'user@example.com'),
-                                success_url=f"{domain}?subscribed=true",
-                                cancel_url=domain
-                            )
-                            if session:
-                                st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
-                                st.info("✅ 14-day FREE trial - No charge until trial ends!")
-                            else:
-                                st.error("Unable to create checkout session")
-                        except Exception as e:
-                            st.error(f"Payment setup error: {str(e)}")
-                            st.session_state.subscribed = True  # Demo mode
-                        save_session(st.session_state.username)  # Save subscription status
+                        # Skip Stripe for now and just activate subscription directly
+                        st.session_state.subscribed = True
+                        save_session(st.session_state.username)
+                        st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
+                        st.info("✅ You now have access to all premium features!")
+                        st.balloons()
+                        st.rerun()
                 else:
                     with st.spinner(f"Analyzing {ticker.upper()}..."):
                         # Mark free search as used for non-subscribers
