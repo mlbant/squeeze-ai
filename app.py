@@ -928,8 +928,10 @@ else:
                 """, unsafe_allow_html=True)
                 
                 if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="scan_upgrade"):
+                    st.write("DEBUG: Button clicked!")  # Debug message
                     try:
                         domain = get_current_domain()
+                        st.write(f"DEBUG: Domain = {domain}")  # Debug message
                         session = stripe_handler.create_checkout_session(
                             user_id=st.session_state.get('user_id', 1),
                             email=st.session_state.get('email', 'user@example.com'),
@@ -937,12 +939,15 @@ else:
                             cancel_url=domain
                         )
                         if session:
+                            st.write(f"DEBUG: Session created: {session.id}")  # Debug message
                             st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
                             st.info("✅ 14-day FREE trial - No charge until trial ends!")
                         else:
                             st.error("Unable to create checkout session")
                     except Exception as e:
                         st.error(f"Payment setup error: {str(e)}")
+                        import traceback
+                        st.error(f"Debug traceback: {traceback.format_exc()}")
                         st.session_state.subscribed = True  # Demo mode
                         save_session(st.session_state.username)  # Save subscription status
             else:
@@ -1130,9 +1135,11 @@ else:
                         """, unsafe_allow_html=True)
                         
                         if st.button("🔓 Unlock Pro Access - $29/month (14-day FREE trial)", type="primary"):
+                            st.write("DEBUG: Unlock Pro button clicked!")  # Debug message
                             # Create Stripe session
                             try:
                                 domain = get_current_domain()
+                                st.write(f"DEBUG: Domain = {domain}")  # Debug message
                                 session = stripe_handler.create_checkout_session(
                                     user_id=st.session_state.get('user_id', 1),
                                     email=st.session_state.get('email', 'user@example.com'),
@@ -1140,12 +1147,15 @@ else:
                                     cancel_url=domain
                                 )
                                 if session:
+                                    st.write(f"DEBUG: Session created: {session.id}")  # Debug message
                                     st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
                                     st.info("✅ 14-day FREE trial - No charge until trial ends!")
                                 else:
                                     st.error("Unable to create checkout session")
                             except Exception as e:
                                 st.error(f"Payment setup error: {str(e)}")
+                                import traceback
+                                st.error(f"Debug traceback: {traceback.format_exc()}")
                                 st.session_state.subscribed = True  # Demo mode
                         save_session(st.session_state.username)  # Save subscription status
                     else:
