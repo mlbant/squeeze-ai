@@ -332,19 +332,19 @@ def clear_session():
 # Check for existing session on page load (always check for persistence)
 session_data = load_session()
 st.write(f"DEBUG: Session data loaded: {session_data is not None}")
-if session_data:
+
+# Safe session restoration with proper None checks
+if session_data and isinstance(session_data, dict):
     st.write(f"DEBUG: Session contains: {list(session_data.keys())}")
     if not st.session_state.get('authentication_status', False):
         st.session_state.authentication_status = True
-        st.session_state.username = session_data['username']
+        st.session_state.username = session_data.get('username', 'Unknown')
         st.session_state.name = session_data.get('name', session_data.get('username', 'User'))
-        st.write(f"DEBUG: Restored session for user: {session_data['username']}")
+        st.write(f"DEBUG: Restored session for user: {session_data.get('username', 'Unknown')}")
     
     # Always restore subscription status if available
     if 'subscribed' not in st.session_state:
         st.session_state.subscribed = session_data.get('subscribed', False)
-        # Debug: Show subscription status restoration
-        # Removed annoying subscription restoration message
     
     # Restore scan and analysis results
     if 'last_scan_results' not in st.session_state:
