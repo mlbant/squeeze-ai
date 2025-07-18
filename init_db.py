@@ -6,9 +6,10 @@ import os
 
 def init_database():
     """Initialize the database with required tables"""
-    if not os.path.exists('squeeze_ai.db'):
-        conn = sqlite3.connect('squeeze_ai.db')
-        cursor = conn.cursor()
+    try:
+        if not os.path.exists('squeeze_ai.db'):
+            conn = sqlite3.connect('squeeze_ai.db')
+            cursor = conn.cursor()
         
         # Create tables
         cursor.execute('''
@@ -100,9 +101,14 @@ def init_database():
             )
         ''')
         
-        conn.commit()
-        conn.close()
-        print("Database initialized successfully!")
+            conn.commit()
+            conn.close()
+            print("Database initialized successfully!")
+        else:
+            print("Database already exists, skipping initialization")
+    except Exception as e:
+        print(f"Database initialization error: {e}")
+        print("Continuing anyway...")
 
 if __name__ == "__main__":
     init_database()
