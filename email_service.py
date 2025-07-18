@@ -14,12 +14,18 @@ class EmailService:
         self.smtp_server = "smtp.gmail.com"  # Google Workspace uses same SMTP as Gmail
         self.smtp_port = 587
         self.sender_email = os.getenv("SENDER_EMAIL")  # Your Google Workspace email
-        self.sender_password = os.getenv("SENDER_APP_PASSWORD")  # Google Workspace App Password
+        self.sender_password = os.getenv("SENDER_APP_PASSWORD", "").replace(" ", "")  # Remove spaces from App Password
         self.support_email = os.getenv("SUPPORT_EMAIL", "support@squeeze-ai.com")
         
     def send_email(self, to_email, subject, html_body, text_body=None):
         """Send an email using Gmail SMTP"""
         try:
+            # Check if credentials are available
+            if not self.sender_email or not self.sender_password:
+                print(f"❌ Email credentials missing:")
+                print(f"  SENDER_EMAIL: {self.sender_email}")
+                print(f"  SENDER_APP_PASSWORD: {'SET' if self.sender_password else 'NOT SET'}")
+                return False
             # Create message
             message = MIMEMultipart("alternative")
             message["Subject"] = subject
@@ -44,7 +50,11 @@ class EmailService:
             return True
             
         except Exception as e:
-            print(f"Error sending email: {str(e)}")
+            print(f"❌ Error sending email: {str(e)}")
+            print(f"   Email type: {type(e).__name__}")
+            print(f"   SMTP Server: {self.smtp_server}:{self.smtp_port}")
+            print(f"   Sender: {self.sender_email}")
+            print(f"   Recipient: {to_email}")
             return False
     
     def send_welcome_email(self, user_email, username):
