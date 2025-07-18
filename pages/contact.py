@@ -128,38 +128,38 @@ with st.form("contact_form"):
             try:
                 if email_service is None:
                     st.error("❌ Email service is not available. Please contact us directly at support@squeeze-ai.com")
-                    return
-                # Send email to support team
-                support_email_sent = email_service.send_contact_form_email(
-                    name, email, subject, message, priority
-                )
-                
-                # Send confirmation email to user
-                user_email_sent = email_service.send_contact_confirmation_email(
-                    email, name, subject
-                )
-                
-                # Save to local file as backup
-                with open("contact_messages.txt", "a") as f:
-                    f.write(f"\n--- New Message ({datetime.now()}) ---\n")
-                    f.write(f"Name: {name}\n")
-                    f.write(f"Email: {email}\n")
-                    f.write(f"Subject: {subject}\n")
-                    f.write(f"Priority: {priority}\n")
-                    f.write(f"Message: {message}\n")
-                    f.write(f"Support Email Sent: {support_email_sent}\n")
-                    f.write(f"User Email Sent: {user_email_sent}\n")
-                    f.write("-" * 50 + "\n")
-                
-                # Show appropriate success message
-                if support_email_sent and user_email_sent:
-                    st.success("✅ Message sent successfully! We'll get back to you within 24 hours. Check your email for confirmation.")
-                elif support_email_sent:
-                    st.success("✅ Message sent to our support team! We'll get back to you within 24 hours.")
-                    st.warning("⚠️ Confirmation email could not be sent to your address.")
                 else:
-                    st.error("❌ There was an error sending your message. Please try again or contact us directly at support@squeeze-ai.com")
-                    st.info("💡 Your message has been saved locally and we'll review it manually.")
+                    # Send email to support team
+                    support_email_sent = email_service.send_contact_form_email(
+                        name, email, subject, message, priority
+                    )
+                    
+                    # Send confirmation email to user
+                    user_email_sent = email_service.send_contact_confirmation_email(
+                        email, name, subject
+                    )
+                    
+                    # Save to local file as backup
+                    with open("contact_messages.txt", "a") as f:
+                        f.write(f"\n--- New Message ({datetime.now()}) ---\n")
+                        f.write(f"Name: {name}\n")
+                        f.write(f"Email: {email}\n")
+                        f.write(f"Subject: {subject}\n")
+                        f.write(f"Priority: {priority}\n")
+                        f.write(f"Message: {message}\n")
+                        f.write(f"Support Email Sent: {support_email_sent}\n")
+                        f.write(f"User Email Sent: {user_email_sent}\n")
+                        f.write("-" * 50 + "\n")
+                    
+                    # Show appropriate success message
+                    if support_email_sent and user_email_sent:
+                        st.success("✅ Message sent successfully! We'll get back to you within 24 hours. Check your email for confirmation.")
+                    elif support_email_sent:
+                        st.success("✅ Message sent to our support team! We'll get back to you within 24 hours.")
+                        st.warning("⚠️ Confirmation email could not be sent to your address.")
+                    else:
+                        st.error("❌ There was an error sending your message. Please try again or contact us directly at support@squeeze-ai.com")
+                        st.info("💡 Your message has been saved locally and we'll review it manually.")
                 
             except Exception as e:
                 st.error("There was an error processing your message. Please try again or contact us directly.")
