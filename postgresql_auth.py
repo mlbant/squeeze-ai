@@ -354,6 +354,31 @@ class PostgreSQLAuthenticator:
                 db.rollback()
                 db.close()
             return False
+    
+    def delete_user(self, username: str) -> bool:
+        """Delete a user account"""
+        try:
+            db = next(get_db())
+            user = db.query(User).filter(User.username == username).first()
+            
+            if not user:
+                db.close()
+                return False
+            
+            # Delete user
+            db.delete(user)
+            db.commit()
+            db.close()
+            
+            logger.info(f"User deleted successfully: {username}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error deleting user: {e}")
+            if 'db' in locals():
+                db.rollback()
+                db.close()
+            return False
 
 # Create global authenticator instance
 authenticator = PostgreSQLAuthenticator()

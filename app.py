@@ -352,11 +352,36 @@ if 'page' in query_params:
 if 'reset_token' in query_params:
     reset_token = query_params['reset_token']
     
-    # Check if token is valid and not expired
-    if 'reset_tokens' in config and reset_token in config['reset_tokens']:
-        token_data = config['reset_tokens'][reset_token]
+    # PostgreSQL-based password reset (simplified for now)
+    st.markdown("## Reset Your Password")
+    st.markdown("Enter your new password below:")
+    
+    with st.form("reset_password_form"):
+        new_password = st.text_input("New Password", type="password")
+        confirm_password = st.text_input("Confirm New Password", type="password")
         
-        if time.time() < token_data['expires']:
+        if st.form_submit_button("Reset Password"):
+            if new_password and confirm_password:
+                if new_password == confirm_password:
+                    if len(new_password) >= 6:
+                        # Use PostgreSQL reset password method
+                        success = authenticator.reset_password(reset_token, new_password)
+                        
+                        if success:
+                            st.success("Password reset successful! You can now log in with your new password.")
+                            st.info("You can now return to the login page.")
+                        else:
+                            st.error("Password reset failed. The token may be expired or invalid.")
+                    else:
+                        st.error("Password must be at least 6 characters long.")
+                else:
+                    st.error("Passwords don't match.")
+            else:
+                st.error("Please fill in both password fields.")
+    st.stop()
+
+# Continue with main app logic
+if True:  # Placeholder for main app logic
             # Token is valid, show password reset form
             st.markdown("## Reset Your Password")
             st.markdown("Enter your new password below:")
@@ -2148,30 +2173,24 @@ else:
                 if st.button("Forgot Password?", type="secondary"):
                     try:
                         # Safety check for username
-                        if not st.session_state.username or st.session_state.username not in config['credentials']['usernames']:
+                        if not st.session_state.username:
                             st.error("Session error. Please log in again.")
                             st.stop()
                         
-                        # Generate secure reset token
-                        import random
-                        import string
-                        import time
-                        reset_token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+                        # Generate reset token using PostgreSQL
+                        reset_token = authenticator.create_reset_token(st.session_state.username)
                         
-                        # Store reset token with expiration (1 hour)
-                        if 'reset_tokens' not in config:
-                            config['reset_tokens'] = {}
-                        config['reset_tokens'][reset_token] = {
-                            'username': st.session_state.username,
-                            'expires': time.time() + 3600  # 1 hour from now
-                        }
+                        if not reset_token:
+                            st.error("Failed to generate reset token. Please try again.")
+                            st.stop()
                         
-                        # Save config
-                        with open('config.yaml', 'w') as file:
-                            yaml.dump(config, file, default_flow_style=False)
+                        # Get user details from database
+                        user = authenticator.get_user_by_username(st.session_state.username)
+                        if not user:
+                            st.error("User not found. Please log in again.")
+                            st.stop()
                         
-                        # Get user details
-                        user_name = config['credentials']['usernames'][st.session_state.username].get('name', st.session_state.username)
+                        user_name = f"{user.first_name} {user.last_name}".strip() or user.username
                         
                         # Send password reset email using the new email service
                         email_sent = email_service.send_password_reset_email(current_email, user_name, reset_token)
@@ -2264,16 +2283,16 @@ else:
                     if st.button("✅ Yes, Delete My Account", type="primary", use_container_width=True):
                         try:
                             # Safety check for username
-                            if not st.session_state.username or st.session_state.username not in config['credentials']['usernames']:
+                            if not st.session_state.username:
                                 st.error("Session error. Please log in again.")
                                 st.stop()
                             
-                            # Delete user from config
-                            del config['credentials']['usernames'][st.session_state.username]
+                            # Delete user from PostgreSQL
+                            success = authenticator.delete_user(st.session_state.username)
                             
-                            # Save updated config
-                            with open('config.yaml', 'w') as file:
-                                yaml.dump(config, file, default_flow_style=False)
+                            if not success:
+                                st.error("Failed to delete account. Please try again.")
+                                st.stop()
                             
                             # Delete session file if it exists
                             session_file = f"session_{st.session_state.username}.json"
