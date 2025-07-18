@@ -347,6 +347,15 @@ def clear_session():
 # Check for existing session on page load (always check for persistence)
 session_data = load_session()
 st.write(f"DEBUG: Session data loaded: {session_data is not None}")
+st.write(f"DEBUG: Current authentication_status: {st.session_state.get('authentication_status', 'Not set')}")
+st.write(f"DEBUG: Current username: {st.session_state.get('username', 'Not set')}")
+st.write(f"DEBUG: Current subscribed: {st.session_state.get('subscribed', 'Not set')}")
+st.write(f"DEBUG: Session state keys: {list(st.session_state.keys())}")
+
+# Force save session on every page load if user is logged in
+if st.session_state.get('authentication_status') and st.session_state.get('username'):
+    st.write(f"DEBUG: User is logged in, forcing session save")
+    save_session(st.session_state.username)
 
 # Safe session restoration with proper None checks
 if session_data and isinstance(session_data, dict):
