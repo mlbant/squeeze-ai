@@ -8,8 +8,20 @@ if [ -z "$PORT" ]; then
     export PORT=8501
 fi
 
-# Clear the problematic STREAMLIT_SERVER_PORT environment variable
-unset STREAMLIT_SERVER_PORT
+# Create Streamlit config with the correct port
+mkdir -p .streamlit
+cat > .streamlit/config.toml << EOF
+[server]
+port = $PORT
+address = "0.0.0.0"
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+EOF
 
-# Start streamlit with explicit port
-streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+# Clear problematic environment variables
+export STREAMLIT_SERVER_PORT=""
+export STREAMLIT_SERVER_ADDRESS=""
+
+# Start streamlit without port arguments (use config file)
+streamlit run app.py
