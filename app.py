@@ -1280,29 +1280,20 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    if st.button("🔓 Upgrade to Pro - $29/month", type="primary", key="search_upgrade"):
+                    if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="search_upgrade"):
                         try:
-                            session = stripe.checkout.Session.create(
-                                payment_method_types=['card'],
-                                line_items=[{
-                                    'price_data': {
-                                        'currency': 'usd',
-                                        'product_data': {
-                                            'name': 'Squeeze Ai Pro',
-                                            'description': 'Full access to all squeeze analysis and features'
-                                        },
-                                        'unit_amount': 2900,
-                                        'recurring': {
-                                            'interval': 'month'
-                                        }
-                                    },
-                                    'quantity': 1
-                                }],
-                                mode='subscription',
-                                success_url="http://localhost:8501?subscribed=true",
-                                cancel_url="http://localhost:8501"
+                            domain = get_current_domain()
+                            session = stripe_handler.create_checkout_session(
+                                user_id=st.session_state.get('user_id', 1),
+                                email=st.session_state.get('email', 'user@example.com'),
+                                success_url=f"{domain}?subscribed=true",
+                                cancel_url=domain
                             )
-                            st.markdown(f"[Complete Payment]({session.url})")
+                            if session:
+                                st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
+                                st.info("✅ 14-day FREE trial - No charge until trial ends!")
+                            else:
+                                st.error("Unable to create checkout session")
                         except Exception as e:
                             st.error(f"Payment setup error: {str(e)}")
                             st.session_state.subscribed = True  # Demo mode
@@ -1484,29 +1475,20 @@ else:
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("🔓 Upgrade to Pro - $29/month", type="primary", key="portfolio_upgrade"):
+            if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="portfolio_upgrade"):
                 try:
-                    session = stripe.checkout.Session.create(
-                        payment_method_types=['card'],
-                        line_items=[{
-                            'price_data': {
-                                'currency': 'usd',
-                                'product_data': {
-                                    'name': 'Squeeze Ai Pro',
-                                    'description': 'Full access to all squeeze analysis and portfolio features'
-                                },
-                                'unit_amount': 2900,
-                                'recurring': {
-                                    'interval': 'month'
-                                }
-                            },
-                            'quantity': 1
-                        }],
-                        mode='subscription',
-                        success_url="http://localhost:8501?subscribed=true",
-                        cancel_url="http://localhost:8501"
+                    domain = get_current_domain()
+                    session = stripe_handler.create_checkout_session(
+                        user_id=st.session_state.get('user_id', 1),
+                        email=st.session_state.get('email', 'user@example.com'),
+                        success_url=f"{domain}?subscribed=true",
+                        cancel_url=domain
                     )
-                    st.markdown(f"[Complete Payment]({session.url})")
+                    if session:
+                        st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
+                        st.info("✅ 14-day FREE trial - No charge until trial ends!")
+                    else:
+                        st.error("Unable to create checkout session")
                 except Exception as e:
                     st.error(f"Payment setup error: {str(e)}")
                     st.session_state.subscribed = True  # Demo mode
@@ -2194,11 +2176,26 @@ else:
                 st.markdown("• Priority support")
                 st.markdown("")
                 
-                if st.button("Upgrade to Pro - $29/month", type="primary"):
-                    st.session_state.subscribed = True  # Demo
-                    save_session(st.session_state.username)  # Save subscription status
-                    st.success("🚀 Pro subscription activated and saved!")
-                    st.rerun()
+                if st.button("Upgrade to Pro - $29/month (14-day FREE trial)", type="primary"):
+                    try:
+                        domain = get_current_domain()
+                        session = stripe_handler.create_checkout_session(
+                            user_id=st.session_state.get('user_id', 1),
+                            email=st.session_state.get('email', 'user@example.com'),
+                            success_url=f"{domain}?subscribed=true",
+                            cancel_url=domain
+                        )
+                        if session:
+                            st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
+                            st.info("✅ 14-day FREE trial - No charge until trial ends!")
+                        else:
+                            st.error("Unable to create checkout session")
+                    except Exception as e:
+                        st.error(f"Payment setup error: {str(e)}")
+                        st.session_state.subscribed = True  # Demo mode
+                        save_session(st.session_state.username)  # Save subscription status
+                        st.success("🚀 Pro subscription activated and saved!")
+                        st.rerun()
             
             st.markdown("")
             st.markdown("### Account Actions")
