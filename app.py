@@ -476,6 +476,7 @@ if not authenticator.is_authenticated():
                             # Generate reset token
                             reset_token = authenticator.create_reset_token(user.username)
                             
+                            if reset_token:
                                 # Send password reset email
                                 user_name = f"{user.first_name} {user.last_name}".strip() or user.username
                                 email_sent = email_service.send_password_reset_email(user.email, user_name, reset_token)
