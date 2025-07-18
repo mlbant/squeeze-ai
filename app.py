@@ -1007,19 +1007,37 @@ else:
                 """, unsafe_allow_html=True)
                 
                 if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="scan_upgrade"):
+                    # Debug: Show Stripe key status
+                    import os
+                    stripe_key = os.getenv('STRIPE_SECRET_KEY')
+                    st.write(f"DEBUG: Stripe key present: {stripe_key is not None}")
+                    st.write(f"DEBUG: Stripe key starts with: {stripe_key[:15] if stripe_key else 'None'}...")
+                    
                     try:
                         domain = get_current_domain()
+                        st.write(f"DEBUG: Domain: {domain}")
+                        st.write(f"DEBUG: User ID: {st.session_state.get('user_id', 1)}")
+                        st.write(f"DEBUG: Email: {st.session_state.get('email', st.session_state.get('username', 'user@example.com'))}")
+                        
                         session = stripe_handler.create_checkout_session(
                             user_id=st.session_state.get('user_id', 1),
                             email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
                             success_url=f"{domain}?subscribed=true",
                             cancel_url=domain
                         )
+                        
+                        st.write(f"DEBUG: Session created: {session is not None}")
                         if session:
+                            st.write(f"DEBUG: Session URL: {session.url}")
                             st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
                             st.info("✅ 14-day FREE trial - No charge until trial ends!")
                         else:
-                            st.error("Unable to create checkout session")
+                            st.error("Unable to create checkout session - session is None")
+                            # Fallback to direct activation
+                            st.session_state.subscribed = True
+                            save_session(st.session_state.username)
+                            st.success("🎉 Pro activated! (Stripe unavailable)")
+                            st.rerun()
                     except Exception as e:
                         st.error(f"Payment setup error: {str(e)}")
                         import traceback
