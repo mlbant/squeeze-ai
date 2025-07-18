@@ -251,6 +251,7 @@ class PostgreSQLAuthenticator:
         if self.authenticate_user(username, password):
             # Set session state
             st.session_state['authenticated'] = True
+            st.session_state['authentication_status'] = True
             st.session_state['username'] = username
             st.session_state['login_time'] = datetime.now()
             
@@ -261,6 +262,21 @@ class PostgreSQLAuthenticator:
                 st.session_state['user_first_name'] = user.first_name
                 st.session_state['user_last_name'] = user.last_name
                 st.session_state['user_roles'] = user.roles
+                st.session_state['name'] = f"{user.first_name} {user.last_name}".strip() or username
+            
+            # Create database session
+            from session_manager import session_manager
+            session_data = {
+                'username': username,
+                'name': st.session_state.get('name', username),
+                'subscribed': st.session_state.get('subscribed', False),
+                'email': user.email if user else ''
+            }
+            session_id = session_manager.create_session(username, session_data)
+            if session_id:
+                st.session_state['session_id'] = session_id
+                # Add session ID to URL for persistence
+                st.query_params['session_id'] = session_id
             
             return True
         return False

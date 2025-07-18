@@ -18,6 +18,7 @@ from email_service import email_service
 from postgresql_auth import authenticator
 from stripe_handler import StripeHandler
 from subscription_handler import SubscriptionHandler
+from session_manager import session_manager
 dotenv.load_dotenv()
 
 # Initialize subscription handler
@@ -257,29 +258,24 @@ if "name" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = None
 
-# Simple session persistence using file-based storage
-# This avoids complex cookie/JS issues and provides reliable session management
-import tempfile
+# Database-backed session persistence
 import json
 import time
 
-def get_session_file_path():
-    """Get the path for the session file - use a simple approach that works across refreshes"""
-    # Use current directory which should be persistent on Render
-    # This approach stores the last logged in user session
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    session_file = os.path.join(current_dir, "squeeze_ai_last_session.json")
-    print(f"DEBUG: Session file path: {session_file}")
-    return session_file
+# Initialize session ID from query params or cookies
+if 'session_id' not in st.session_state:
+    # Check for session ID in query params
+    session_id = st.query_params.get('session_id')
+    if session_id:
+        st.session_state.session_id = session_id
+    else:
+        st.session_state.session_id = None
 
 def save_session(username):
-    """Save session to file"""
-    print(f"DEBUG: save_session called with username: {username}")
+    """Save session to database"""
     try:
-        session_file = get_session_file_path()
         session_data = {
             'username': username,
-            'timestamp': time.time(),
             'name': username,  # Use username as name for now
             'subscribed': st.session_state.get('subscribed', False),
             'last_scan_results': st.session_state.get('last_scan_results', None),
@@ -291,97 +287,78 @@ def save_session(username):
             'free_search_used': st.session_state.get('free_search_used', False),
             'portfolio_holdings': st.session_state.get('portfolio_holdings', [])
         }
-        print(f"DEBUG: Saving session to: {session_file}")
-        print(f"DEBUG: Session data: {session_data}")
-        with open(session_file, 'w') as f:
-            json.dump(session_data, f)
-        print(f"DEBUG: Session saved successfully")
-        # Verify the file was created
-        if os.path.exists(session_file):
-            print(f"DEBUG: Session file verified to exist")
+        
+        if st.session_state.get('session_id'):
+            # Update existing session
+            success = session_manager.update_session(st.session_state.session_id, session_data)
         else:
-            print(f"DEBUG: WARNING: Session file was not created")
+            # Create new session
+            session_id = session_manager.create_session(username, session_data)
+            if session_id:
+                st.session_state.session_id = session_id
+                # Add session ID to URL for persistence
+                st.query_params['session_id'] = session_id
     except Exception as e:
-        print(f"DEBUG: Error saving session: {e}")
-        import traceback
-        traceback.print_exc()
+        pass
 
 def load_session():
-    """Load session from file"""
+    """Load session from database"""
     try:
-        session_file = get_session_file_path()
-        print(f"DEBUG: Looking for session file: {session_file}")
-        if os.path.exists(session_file):
-            print(f"DEBUG: Session file exists")
-            with open(session_file, 'r') as f:
-                session_data = json.load(f)
-                
-            print(f"DEBUG: Session data loaded: {session_data}")
-            # Check if session is still valid (within 24 hours)
-            if time.time() - session_data.get('timestamp', 0) < 86400:
-                username = session_data.get('username')
-                print(f"DEBUG: Checking user exists: {username}")
-                # Check if user exists in PostgreSQL
-                if authenticator.get_user_by_username(username):
-                    print(f"DEBUG: User exists, returning session data")
-                    return session_data
-                else:
-                    print(f"DEBUG: User not found in database")
+        session_id = st.session_state.get('session_id')
+        if not session_id:
+            return None
+            
+        session_info = session_manager.get_session(session_id)
+        
+        if session_info:
+            # Check if user exists in PostgreSQL
+            if authenticator.get_user_by_username(session_info['username']):
+                # Merge session data
+                session_data = session_info['session_data']
+                session_data['username'] = session_info['username']
+                return session_data
             else:
-                print(f"DEBUG: Session expired")
-        else:
-            print(f"DEBUG: Session file does not exist")
+                # Invalidate session
+                session_manager.invalidate_session(session_id)
     except Exception as e:
-        print(f"DEBUG: Error loading session: {e}")
+        pass
     return None
 
 def clear_session():
-    """Clear session file"""
+    """Clear session from database"""
     try:
-        session_file = get_session_file_path()
-        if os.path.exists(session_file):
-            os.remove(session_file)
+        session_id = st.session_state.get('session_id')
+        if session_id:
+            session_manager.invalidate_session(session_id)
+            st.session_state.session_id = None
+            # Clear session ID from URL
+            if 'session_id' in st.query_params:
+                del st.query_params['session_id']
     except:
         pass
 
 # Check for existing session on page load (always check for persistence)
 session_data = load_session()
-st.write(f"DEBUG: Session data loaded: {session_data is not None}")
-st.write(f"DEBUG: Current authentication_status: {st.session_state.get('authentication_status', 'Not set')}")
-st.write(f"DEBUG: Current authenticated: {st.session_state.get('authenticated', 'Not set')}")
-st.write(f"DEBUG: Current username: {st.session_state.get('username', 'Not set')}")
-st.write(f"DEBUG: Current subscribed: {st.session_state.get('subscribed', 'Not set')}")
-st.write(f"DEBUG: Session state keys: {list(st.session_state.keys())}")
 
 # Check if there's a mismatch between authenticated and authentication_status
 if st.session_state.get('authenticated') and not st.session_state.get('authentication_status'):
-    st.write(f"DEBUG: MISMATCH - authenticated=True but authentication_status=False")
     st.session_state.authentication_status = True
-    st.write(f"DEBUG: Fixed authentication_status to True")
 
 # Check if user is actually logged in but authentication_status is wrong
 if st.session_state.get('username') and st.session_state.get('username') != 'Not set':
-    st.write(f"DEBUG: Username is set to: {st.session_state.username}")
-    
     # Fix authentication_status if it's wrong
     if not st.session_state.get('authentication_status'):
-        st.write(f"DEBUG: Fixing authentication_status from False to True")
         st.session_state.authentication_status = True
     
     # Force save session
-    st.write(f"DEBUG: Forcing session save for user: {st.session_state.username}")
     save_session(st.session_state.username)
-else:
-    st.write(f"DEBUG: No username set, user needs to log in")
 
 # Safe session restoration with proper None checks
 if session_data and isinstance(session_data, dict):
-    st.write(f"DEBUG: Session contains: {list(session_data.keys())}")
     if not st.session_state.get('authentication_status', False):
         st.session_state.authentication_status = True
         st.session_state.username = session_data.get('username', 'Unknown')
         st.session_state.name = session_data.get('name', session_data.get('username', 'User'))
-        st.write(f"DEBUG: Restored session for user: {session_data.get('username', 'Unknown')}")
     
     # Always restore subscription status if available
     if 'subscribed' not in st.session_state:
@@ -407,7 +384,6 @@ if session_data and isinstance(session_data, dict):
     if 'portfolio_holdings' not in st.session_state:
         st.session_state.portfolio_holdings = session_data.get('portfolio_holdings', [])
 else:
-    st.write("DEBUG: No session data found - user will need to log in")
     # Initialize default values when no session exists
     if 'subscribed' not in st.session_state:
         st.session_state.subscribed = False
@@ -1015,10 +991,6 @@ else:
             # Check if user is subscribed or if they've used their free scan
             # Note: subscribed status should be loaded from session, not defaulted here
             
-            # Debug: Show current state
-            st.write(f"DEBUG: subscribed = {st.session_state.subscribed}")
-            st.write(f"DEBUG: free_scan_used = {st.session_state.get('free_scan_used', 'not set')}")
-            
             if not st.session_state.subscribed and st.session_state.free_scan_used:
                 # Free user has already used their scan
                 st.warning("🔒 Free scan limit reached!")
@@ -1216,7 +1188,6 @@ else:
                 else:
                     # Free preview
                     st.info("🎯 Free Preview: Showing top squeeze candidate only")
-                    st.write(f"DEBUG: In free preview section, stocks count = {len(stocks) if stocks else 0}")
                     if stocks and len(stocks) > 0:
                         stock = stocks[0]
                         st.markdown(f"""
@@ -2399,4 +2370,3 @@ footer_html = """
 """
 
 st.markdown(footer_html, unsafe_allow_html=True)
-
