@@ -1019,10 +1019,14 @@ else:
                         st.write(f"DEBUG: User ID: {st.session_state.get('user_id', 1)}")
                         st.write(f"DEBUG: Email: {st.session_state.get('email', st.session_state.get('username', 'user@example.com'))}")
                         
+                        # Include session ID in success URL for proper session restoration
+                        session_id = st.session_state.get('session_id', '')
+                        success_url = f"{domain}?subscribed=true&session_id={session_id}" if session_id else f"{domain}?subscribed=true"
+                        
                         session = stripe_handler.create_checkout_session(
                             user_id=st.session_state.get('user_id', 1),
                             email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
-                            success_url=f"{domain}?subscribed=true",
+                            success_url=success_url,
                             cancel_url=domain
                         )
                         
@@ -1234,10 +1238,14 @@ else:
                         if st.button("🔓 Unlock Pro Access - $29/month (14-day FREE trial)", type="primary"):
                             try:
                                 domain = get_current_domain()
+                                # Include session ID in success URL for proper session restoration
+                                session_id = st.session_state.get('session_id', '')
+                                success_url = f"{domain}?subscribed=true&session_id={session_id}" if session_id else f"{domain}?subscribed=true"
+                                
                                 session = stripe_handler.create_checkout_session(
                                     user_id=st.session_state.get('user_id', 1),
                                     email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
-                                    success_url=f"{domain}?subscribed=true",
+                                    success_url=success_url,
                                     cancel_url=domain
                                 )
                                 if session:
@@ -1392,10 +1400,14 @@ else:
                     if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="search_upgrade"):
                         try:
                             domain = get_current_domain()
+                            # Include session ID in success URL for proper session restoration
+                            session_id = st.session_state.get('session_id', '')
+                            success_url = f"{domain}?subscribed=true&session_id={session_id}" if session_id else f"{domain}?subscribed=true"
+                            
                             session = stripe_handler.create_checkout_session(
                                 user_id=st.session_state.get('user_id', 1),
                                 email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
-                                success_url=f"{domain}?subscribed=true",
+                                success_url=success_url,
                                 cancel_url=domain
                             )
                             if session:
