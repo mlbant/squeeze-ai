@@ -1254,11 +1254,22 @@ else:
                                     success_url=success_url,
                                     cancel_url=domain
                                 )
+                                # Debug Stripe configuration
+                                stripe_key = os.getenv('STRIPE_SECRET_KEY')
+                                st.write(f"DEBUG: Stripe key exists: {bool(stripe_key)}")
+                                st.write(f"DEBUG: Stripe key starts with sk_: {stripe_key.startswith('sk_') if stripe_key else False}")
+                                st.write(f"DEBUG: Session created: {session is not None}")
+                                
                                 if session:
                                     st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
                                     st.info("✅ 14-day FREE trial - No charge until trial ends!")
                                 else:
                                     st.error("Unable to create checkout session")
+                                    # Show additional error info
+                                    if not stripe_key:
+                                        st.error("❌ STRIPE_SECRET_KEY environment variable not found")
+                                    elif not stripe_key.startswith('sk_'):
+                                        st.error("❌ STRIPE_SECRET_KEY format invalid (should start with sk_)")
                             except Exception as e:
                                 st.error(f"Payment setup error: {str(e)}")
                                 import traceback
@@ -1416,11 +1427,22 @@ else:
                                 success_url=success_url,
                                 cancel_url=domain
                             )
+                            # Debug Stripe configuration
+                            stripe_key = os.getenv('STRIPE_SECRET_KEY')
+                            st.write(f"DEBUG: Stripe key exists: {bool(stripe_key)}")
+                            st.write(f"DEBUG: Stripe key starts with sk_: {stripe_key.startswith('sk_') if stripe_key else False}")
+                            st.write(f"DEBUG: Session created: {session is not None}")
+                            
                             if session:
                                 st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
                                 st.info("✅ 14-day FREE trial - No charge until trial ends!")
                             else:
                                 st.error("Unable to create checkout session")
+                                # Show additional error info
+                                if not stripe_key:
+                                    st.error("❌ STRIPE_SECRET_KEY environment variable not found")
+                                elif not stripe_key.startswith('sk_'):
+                                    st.error("❌ STRIPE_SECRET_KEY format invalid (should start with sk_)")
                         except Exception as e:
                             st.error(f"Payment setup error: {str(e)}")
                             import traceback
@@ -1624,11 +1646,22 @@ else:
                         success_url=success_url,
                         cancel_url=domain
                     )
+                    # Debug Stripe configuration
+                    stripe_key = os.getenv('STRIPE_SECRET_KEY')
+                    st.write(f"DEBUG: Stripe key exists: {bool(stripe_key)}")
+                    st.write(f"DEBUG: Stripe key starts with sk_: {stripe_key.startswith('sk_') if stripe_key else False}")
+                    st.write(f"DEBUG: Session created: {session is not None}")
+                    
                     if session:
                         st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
                         st.info("✅ 14-day FREE trial - No charge until trial ends!")
                     else:
                         st.error("Unable to create checkout session")
+                        # Show additional error info
+                        if not stripe_key:
+                            st.error("❌ STRIPE_SECRET_KEY environment variable not found")
+                        elif not stripe_key.startswith('sk_'):
+                            st.error("❌ STRIPE_SECRET_KEY format invalid (should start with sk_)")
                 except Exception as e:
                     st.error(f"Payment setup error: {str(e)}")
                     st.session_state.subscribed = True  # Demo mode
@@ -2333,11 +2366,22 @@ else:
                             success_url=success_url,
                             cancel_url=domain
                         )
+                        # Debug Stripe configuration
+                        stripe_key = os.getenv('STRIPE_SECRET_KEY')
+                        st.write(f"DEBUG: Stripe key exists: {bool(stripe_key)}")
+                        st.write(f"DEBUG: Stripe key starts with sk_: {stripe_key.startswith('sk_') if stripe_key else False}")
+                        st.write(f"DEBUG: Session created: {session is not None}")
+                        
                         if session:
                             st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
                             st.info("✅ 14-day FREE trial - No charge until trial ends!")
                         else:
                             st.error("Unable to create checkout session")
+                            # Show additional error info
+                            if not stripe_key:
+                                st.error("❌ STRIPE_SECRET_KEY environment variable not found")
+                            elif not stripe_key.startswith('sk_'):
+                                st.error("❌ STRIPE_SECRET_KEY format invalid (should start with sk_)")
                     except Exception as e:
                         st.error(f"Payment setup error: {str(e)}")
                         st.session_state.subscribed = True  # Demo mode
