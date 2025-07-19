@@ -24,6 +24,7 @@ class StripeHandler:
     
     def create_checkout_session(self, user_id, email, success_url, cancel_url):
         """Create Stripe checkout session"""
+        self.last_error = None  # Store last error for debugging
         try:
             # Debug: Log the API key status
             api_key = os.getenv('STRIPE_SECRET_KEY')
@@ -84,6 +85,7 @@ class StripeHandler:
             
         except stripe.error.StripeError as e:
             error_msg = f"Stripe error: {str(e)}"
+            self.last_error = error_msg
             print(error_msg)
             # Also write to a file that can be checked
             try:
@@ -95,6 +97,7 @@ class StripeHandler:
             return None
         except Exception as e:
             error_msg = f"General error in create_checkout_session: {str(e)}"
+            self.last_error = error_msg
             print(error_msg)
             try:
                 with open('stripe_errors.log', 'a') as f:

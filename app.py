@@ -1265,6 +1265,9 @@ else:
                                     st.info("✅ 14-day FREE trial - No charge until trial ends!")
                                 else:
                                     st.error("Unable to create checkout session")
+                                    # Show the actual Stripe error if available
+                                    if hasattr(stripe_handler, 'last_error') and stripe_handler.last_error:
+                                        st.error(f"Stripe Error: {stripe_handler.last_error}")
                                     # Show additional error info
                                     if not stripe_key:
                                         st.error("❌ STRIPE_SECRET_KEY environment variable not found")
@@ -1438,6 +1441,9 @@ else:
                                 st.info("✅ 14-day FREE trial - No charge until trial ends!")
                             else:
                                 st.error("Unable to create checkout session")
+                                # Show the actual Stripe error if available
+                                if hasattr(stripe_handler, 'last_error') and stripe_handler.last_error:
+                                    st.error(f"Stripe Error: {stripe_handler.last_error}")
                                 # Show additional error info
                                 if not stripe_key:
                                     st.error("❌ STRIPE_SECRET_KEY environment variable not found")
@@ -1657,6 +1663,9 @@ else:
                         st.info("✅ 14-day FREE trial - No charge until trial ends!")
                     else:
                         st.error("Unable to create checkout session")
+                        # Show the actual Stripe error if available
+                        if hasattr(stripe_handler, 'last_error') and stripe_handler.last_error:
+                            st.error(f"Stripe Error: {stripe_handler.last_error}")
                         # Show additional error info
                         if not stripe_key:
                             st.error("❌ STRIPE_SECRET_KEY environment variable not found")
@@ -2377,6 +2386,9 @@ else:
                             st.info("✅ 14-day FREE trial - No charge until trial ends!")
                         else:
                             st.error("Unable to create checkout session")
+                            # Show the actual Stripe error if available
+                            if hasattr(stripe_handler, 'last_error') and stripe_handler.last_error:
+                                st.error(f"Stripe Error: {stripe_handler.last_error}")
                             # Show additional error info
                             if not stripe_key:
                                 st.error("❌ STRIPE_SECRET_KEY environment variable not found")
