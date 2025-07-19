@@ -571,25 +571,23 @@ if 'reset_token' in query_params:
             else:
                 st.error("Please fill in both password fields.")
     
-    # Show back to homepage button after successful reset (outside the form)
-    if st.session_state.password_reset_success:
-        st.markdown("---")
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col2:
+    # Show back to homepage button (outside the form)
+    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.session_state.password_reset_success:
+            # Show primary button after successful reset
             if st.button("🏠 Back to Homepage", type="primary", use_container_width=True):
                 # Clear the reset token from URL and redirect to homepage
                 st.query_params.clear()
                 st.session_state.password_reset_success = False
                 st.rerun()
-    
-    # Add back to homepage link at the bottom (always available)
-    st.markdown("---")
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        if st.button("← Back to Homepage", type="secondary", use_container_width=True):
-            st.query_params.clear()
-            st.session_state.password_reset_success = False
-            st.rerun()
+        else:
+            # Show secondary button before reset
+            if st.button("← Back to Homepage", type="secondary", use_container_width=True):
+                st.query_params.clear()
+                st.session_state.password_reset_success = False
+                st.rerun()
     
     st.stop()
 
