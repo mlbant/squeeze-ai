@@ -6,7 +6,8 @@ class Analytics:
     """Google Analytics and tracking implementation for Streamlit"""
     
     def __init__(self):
-        self.ga_tracking_id = os.getenv('GOOGLE_ANALYTICS_ID', '')
+        # Use provided Google Analytics ID as fallback
+        self.ga_tracking_id = os.getenv('GOOGLE_ANALYTICS_ID', 'G-CHHPMK0XWG')
         self.debug_mode = os.getenv('ENVIRONMENT', 'development') != 'production'
     
     def inject_google_analytics(self):
@@ -16,7 +17,7 @@ class Analytics:
                 st.warning("⚠️ Google Analytics ID not configured. Set GOOGLE_ANALYTICS_ID environment variable.")
             return
         
-        # Google Analytics 4 tracking code
+        # Google Analytics 4 tracking code (exact format from Google)
         ga_code = f"""
         <!-- Google tag (gtag.js) -->
         <script async src="https://www.googletagmanager.com/gtag/js?id={self.ga_tracking_id}"></script>
@@ -24,10 +25,8 @@ class Analytics:
           window.dataLayer = window.dataLayer || [];
           function gtag(){{dataLayer.push(arguments);}}
           gtag('js', new Date());
-          gtag('config', '{self.ga_tracking_id}', {{
-            page_title: document.title,
-            page_location: window.location.href
-          }});
+
+          gtag('config', '{self.ga_tracking_id}');
         </script>
         """
         
