@@ -278,6 +278,8 @@ def save_session(username):
             'username': username,
             'name': username,  # Use username as name for now
             'subscribed': st.session_state.get('subscribed', False),
+            'subscription_cancelled': st.session_state.get('subscription_cancelled', False),
+            'subscription_start_date': st.session_state.get('subscription_start_date', None),
             'last_scan_results': st.session_state.get('last_scan_results', None),
             'last_scan_filters': st.session_state.get('last_scan_filters', None),
             'last_analysis_result': st.session_state.get('last_analysis_result', None),
@@ -364,6 +366,14 @@ if session_data and isinstance(session_data, dict):
     # Always restore subscription status if available
     if 'subscribed' not in st.session_state:
         st.session_state.subscribed = session_data.get('subscribed', False)
+    
+    # Restore subscription cancellation status
+    if 'subscription_cancelled' not in st.session_state:
+        st.session_state.subscription_cancelled = session_data.get('subscription_cancelled', False)
+    
+    # Restore subscription start date
+    if 'subscription_start_date' not in st.session_state:
+        st.session_state.subscription_start_date = session_data.get('subscription_start_date', None)
     
     # Restore scan and analysis results
     if 'last_scan_results' not in st.session_state:
@@ -2300,6 +2310,13 @@ else:
             st.markdown("### Subscription Status")
             st.markdown("")
             
+            # Force refresh subscription data from session to ensure persistence across refreshes
+            session_data = load_session()
+            if session_data:
+                st.session_state.subscribed = session_data.get('subscribed', False)
+                st.session_state.subscription_cancelled = session_data.get('subscription_cancelled', False)
+                st.session_state.subscription_start_date = session_data.get('subscription_start_date', None)
+            
             if st.session_state.get('subscribed', False):
                 st.success("✅ Pro Member")
                 st.markdown("")
@@ -2351,6 +2368,8 @@ else:
                                 # Mark as cancelled but keep active until billing period ends
                                 st.session_state.subscription_cancelled = True
                                 st.session_state.show_cancel_confirm = False
+                                # Ensure subscription remains active
+                                st.session_state.subscribed = True
                                 save_session(st.session_state.username)
                                 st.success("Subscription cancelled. You'll retain Pro access until your billing period ends.")
                                 st.rerun()
