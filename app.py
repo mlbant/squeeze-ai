@@ -522,6 +522,10 @@ if 'reset_token' in query_params:
     st.markdown("## Reset Your Password")
     st.markdown("Enter your new password below:")
     
+    # Initialize success state
+    if 'password_reset_success' not in st.session_state:
+        st.session_state.password_reset_success = False
+    
     with st.form("reset_password_form"):
         new_password = st.text_input("New Password", type="password")
         confirm_password = st.text_input("Confirm New Password", type="password")
@@ -550,16 +554,9 @@ if 'reset_token' in query_params:
                                     db.commit()
                                     db.close()
                                     
+                                    st.session_state.password_reset_success = True
                                     st.success("✅ Password reset successful!")
                                     st.info("You can now log in with your new password.")
-                                    
-                                    # Add back to homepage button
-                                    col1, col2, col3 = st.columns([1, 1, 1])
-                                    with col2:
-                                        if st.button("🏠 Back to Homepage", type="primary", use_container_width=True):
-                                            # Clear the reset token from URL and redirect to homepage
-                                            st.query_params.clear()
-                                            st.rerun()
                                 else:
                                     st.error("User not found.")
                             except Exception as e:
@@ -574,12 +571,24 @@ if 'reset_token' in query_params:
             else:
                 st.error("Please fill in both password fields.")
     
-    # Add back to homepage link at the bottom
+    # Show back to homepage button after successful reset (outside the form)
+    if st.session_state.password_reset_success:
+        st.markdown("---")
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            if st.button("🏠 Back to Homepage", type="primary", use_container_width=True):
+                # Clear the reset token from URL and redirect to homepage
+                st.query_params.clear()
+                st.session_state.password_reset_success = False
+                st.rerun()
+    
+    # Add back to homepage link at the bottom (always available)
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         if st.button("← Back to Homepage", type="secondary", use_container_width=True):
             st.query_params.clear()
+            st.session_state.password_reset_success = False
             st.rerun()
     
     st.stop()
