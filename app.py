@@ -1031,6 +1031,12 @@ else:
                         )
                         
                         st.write(f"DEBUG: Session created: {session is not None}")
+                        
+                        # Debug Stripe configuration
+                        stripe_key = os.getenv('STRIPE_SECRET_KEY')
+                        st.write(f"DEBUG: Stripe key exists: {bool(stripe_key)}")
+                        st.write(f"DEBUG: Stripe key starts with sk_: {stripe_key.startswith('sk_') if stripe_key else False}")
+                        
                         if session:
                             st.write(f"DEBUG: Session URL: {session.url}")
                             st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")

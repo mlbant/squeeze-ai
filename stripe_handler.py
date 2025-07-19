@@ -25,6 +25,17 @@ class StripeHandler:
     def create_checkout_session(self, user_id, email, success_url, cancel_url):
         """Create Stripe checkout session"""
         try:
+            # Debug: Log the API key status
+            api_key = os.getenv('STRIPE_SECRET_KEY')
+            print(f"DEBUG: API key exists: {bool(api_key)}")
+            print(f"DEBUG: API key starts with sk_: {api_key.startswith('sk_') if api_key else False}")
+            print(f"DEBUG: Creating session for user {user_id}, email {email}")
+            print(f"DEBUG: Success URL: {success_url}")
+            print(f"DEBUG: Cancel URL: {cancel_url}")
+            
+            if not api_key:
+                print("ERROR: STRIPE_SECRET_KEY not found in environment")
+                return None
             # Create or get customer
             customers = stripe.Customer.list(email=email, limit=1)
             if customers.data:
@@ -72,7 +83,25 @@ class StripeHandler:
             return session
             
         except stripe.error.StripeError as e:
-            print(f"Payment error: {str(e)}")
+            error_msg = f"Stripe error: {str(e)}"
+            print(error_msg)
+            # Also write to a file that can be checked
+            try:
+                with open('stripe_errors.log', 'a') as f:
+                    from datetime import datetime
+                    f.write(f"{datetime.now()}: {error_msg}\n")
+            except:
+                pass
+            return None
+        except Exception as e:
+            error_msg = f"General error in create_checkout_session: {str(e)}"
+            print(error_msg)
+            try:
+                with open('stripe_errors.log', 'a') as f:
+                    from datetime import datetime
+                    f.write(f"{datetime.now()}: {error_msg}\n")
+            except:
+                pass
             return None
     
     def create_customer_portal_session(self, user_id):
