@@ -500,35 +500,17 @@ if 'page' in query_params:
 if 'reset_token' in query_params:
     reset_token = query_params['reset_token']
     
-    # Debug token information
-    st.write(f"DEBUG: Received reset token: {reset_token[:20]}...{reset_token[-10:] if len(reset_token) > 30 else reset_token}")
-    st.write(f"DEBUG: Token length: {len(reset_token)}")
-    
-    # Debug: Test database connection and table existence
+    # Validate token exists in database
     try:
         from database_config import get_db, ResetToken
         db = next(get_db())
-        
-        # Check if reset_tokens table exists and has data
-        token_count = db.query(ResetToken).count()
-        st.write(f"DEBUG: Found {token_count} tokens in reset_tokens table")
-        
-        # Check if our specific token exists
         token_exists = db.query(ResetToken).filter(ResetToken.token == reset_token).first()
-        if token_exists:
-            from datetime import datetime
-            current_time = datetime.utcnow()
-            st.write(f"DEBUG: Token found in database - Username: {token_exists.username}, Used: {token_exists.used}, Expires: {token_exists.expires_at}")
-            st.write(f"DEBUG: Current UTC time: {current_time}")
-            st.write(f"DEBUG: Token expired? {token_exists.expires_at <= current_time}")
-        else:
-            st.write("DEBUG: Token NOT found in database")
-        
         db.close()
     except Exception as e:
-        st.write(f"DEBUG: Database check error: {str(e)}")
+        st.error("Database connection error. Please try again later.")
+        st.stop()
     
-    # PostgreSQL-based password reset (simplified for now)
+    # Password reset form
     st.markdown("## Reset Your Password")
     st.markdown("Enter your new password below:")
     
@@ -540,52 +522,38 @@ if 'reset_token' in query_params:
             if new_password and confirm_password:
                 if new_password == confirm_password:
                     if len(new_password) >= 6:
-                        # Use PostgreSQL reset password method
-                        st.write(f"DEBUG: Attempting to reset password with token: {reset_token[:20]}...")
+                        # Try to reset password using the authenticator
+                        success = authenticator.reset_password(reset_token, new_password)
                         
-                        # TEMPORARY WORKAROUND: Since we validated the token above and it's valid, 
-                        # bypass the broken validation and reset directly
-                        if token_exists and not token_exists.used and token_exists.expires_at > current_time:
-                            st.write("DEBUG: Using direct password reset workaround")
-                            try:
-                                from database_config import get_db, User
-                                from datetime import datetime
-                                
-                                db = next(get_db())
-                                user = db.query(User).filter(User.username == token_exists.username).first()
-                                
-                                if user:
-                                    # Update password using the authenticator's hash method
-                                    user.password_hash = authenticator.hash_password(new_password)
-                                    user.updated_at = datetime.utcnow()
-                                    
-                                    # Mark token as used
-                                    token_exists.used = True
-                                    
-                                    db.commit()
-                                    db.close()
-                                    
-                                    st.success("Password reset successful! You can now log in with your new password.")
-                                    st.info("You can now return to the login page.")
-                                    success = True
-                                else:
-                                    st.error("User not found.")
-                                    success = False
-                            except Exception as e:
-                                st.error(f"Direct reset failed: {str(e)}")
-                                success = False
+                        if success:
+                            st.success("✅ Password reset successful!")
+                            st.info("You can now log in with your new password.")
+                            
+                            # Add back to homepage button
+                            col1, col2, col3 = st.columns([1, 1, 1])
+                            with col2:
+                                if st.button("🏠 Back to Homepage", type="primary", use_container_width=True):
+                                    # Clear the reset token from URL and redirect to homepage
+                                    st.query_params.clear()
+                                    st.rerun()
                         else:
-                            success = authenticator.reset_password(reset_token, new_password)
-                        
-                        if not success:
-                            st.error("Password reset failed. The token may be expired or invalid.")
-                            st.error("DEBUG: Check the application logs for more details about why the token validation failed.")
+                            st.error("❌ Password reset failed. The token may be expired or invalid.")
+                            st.info("Please request a new password reset link if needed.")
                     else:
                         st.error("Password must be at least 6 characters long.")
                 else:
                     st.error("Passwords don't match.")
             else:
                 st.error("Please fill in both password fields.")
+    
+    # Add back to homepage link at the bottom
+    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.button("← Back to Homepage", type="secondary", use_container_width=True):
+            st.query_params.clear()
+            st.rerun()
+    
     st.stop()
 
 # Password reset section complete - continue with main app
