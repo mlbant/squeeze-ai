@@ -305,22 +305,33 @@ def load_session():
     """Load session from database"""
     try:
         session_id = st.session_state.get('session_id')
+        print(f"DEBUG load_session: session_id = {session_id}")
         if not session_id:
+            print("DEBUG load_session: No session_id found")
             return None
             
         session_info = session_manager.get_session(session_id)
+        print(f"DEBUG load_session: session_info = {session_info is not None}")
         
         if session_info:
+            print(f"DEBUG load_session: username = {session_info.get('username')}")
             # Check if user exists in PostgreSQL
-            if authenticator.get_user_by_username(session_info['username']):
+            user_exists = authenticator.get_user_by_username(session_info['username'])
+            print(f"DEBUG load_session: user_exists = {user_exists is not None}")
+            if user_exists:
                 # Merge session data
                 session_data = session_info['session_data']
                 session_data['username'] = session_info['username']
+                print(f"DEBUG load_session: returning session data for {session_info['username']}")
                 return session_data
             else:
                 # Invalidate session
+                print(f"DEBUG load_session: user not found, invalidating session")
                 session_manager.invalidate_session(session_id)
+        else:
+            print("DEBUG load_session: No session info found in database")
     except Exception as e:
+        print(f"DEBUG load_session: Exception = {str(e)}")
         pass
     return None
 
@@ -415,7 +426,11 @@ if 'subscribed' in query_params and query_params['subscribed'] == 'true':
         st.session_state.session_id = query_params['session_id']
         
         # Load session data
+        st.write(f"DEBUG: Attempting to load session with ID: {st.session_state.get('session_id')}")
         session_data = load_session()
+        st.write(f"DEBUG: Session data loaded: {session_data is not None}")
+        if session_data:
+            st.write(f"DEBUG: Session data username: {session_data.get('username')}")
         
         if session_data:
             # Restore authentication
