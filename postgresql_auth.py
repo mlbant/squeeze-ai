@@ -211,6 +211,17 @@ class PostgreSQLAuthenticator:
         """Reset password using token"""
         try:
             db = next(get_db())
+            
+            # Debug: Check if token exists at all
+            token_exists = db.query(ResetToken).filter(ResetToken.token == token).first()
+            if not token_exists:
+                logger.error(f"Reset token not found in database: {token}")
+                db.close()
+                return False
+            
+            # Debug: Check token details
+            logger.info(f"Token found - Username: {token_exists.username}, Used: {token_exists.used}, Expires: {token_exists.expires_at}, Current time: {datetime.utcnow()}")
+            
             reset_token = db.query(ResetToken).filter(
                 ResetToken.token == token,
                 ResetToken.used == False,
@@ -218,6 +229,10 @@ class PostgreSQLAuthenticator:
             ).first()
             
             if not reset_token:
+                if token_exists.used:
+                    logger.error(f"Reset token already used: {token}")
+                elif token_exists.expires_at <= datetime.utcnow():
+                    logger.error(f"Reset token expired: {token}, expired at {token_exists.expires_at}")
                 db.close()
                 return False
             

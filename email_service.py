@@ -16,6 +16,15 @@ class EmailService:
         self.sender_email = os.getenv("SENDER_EMAIL")  # Your Google Workspace email
         self.sender_password = os.getenv("SENDER_APP_PASSWORD", "").replace(" ", "")  # Remove spaces from App Password
         self.support_email = os.getenv("SUPPORT_EMAIL", "support@squeeze-ai.com")
+    
+    def _get_domain_url(self):
+        """Get the appropriate domain URL for links"""
+        if os.getenv('ENVIRONMENT') == 'production':
+            return 'https://squeeze-ai.com'
+        elif os.getenv('RENDER'):
+            return 'https://squeeze-ai.onrender.com'
+        else:
+            return 'http://localhost:8501'
         
     def send_email(self, to_email, subject, html_body, text_body=None):
         """Send an email using Gmail SMTP"""
@@ -209,7 +218,7 @@ class EmailService:
                     </ul>
                     
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="https://squeeze-ai.onrender.com" class="button">Start Analyzing Stocks</a>
+                        <a href="{self._get_domain_url()}" class="button">Start Analyzing Stocks</a>
                     </div>
                     
                     <p>Need help? Simply reply to this email or contact our support team.</p>
@@ -240,7 +249,7 @@ class EmailService:
         
         Want more? Upgrade to Pro for unlimited access and portfolio tracking.
         
-        Get started: https://squeeze-ai.com
+        Get started: {self._get_domain_url()}
         
         Happy trading!
         The Squeeze Ai Team
@@ -252,8 +261,9 @@ class EmailService:
         """Send modern password reset email with secure reset link"""
         subject = "Reset Your Squeeze Ai Password"
         
-        # Create reset link (you'll need to implement the reset page)
-        reset_url = f"https://squeeze-ai.com?reset_token={reset_token}"
+        # Create reset link using the correct domain
+        domain = self._get_domain_url()
+        reset_url = f"{domain}?reset_token={reset_token}"
         
         html_body = f"""
         <!DOCTYPE html>
@@ -394,11 +404,11 @@ class EmailService:
                     </div>
                     
                     <div class="help-text">
-                        <p><strong>Didn't request this reset?</strong><br>
-                        If you didn't request a password reset, you can safely ignore this email. Your account remains secure.</p>
+                        <p><strong style="color: #fafafa;">Didn't request this reset?</strong><br>
+                        <span style="color: #9ca3af;">If you didn't request a password reset, you can safely ignore this email. Your account remains secure.</span></p>
                         
-                        <p><strong>Having trouble?</strong><br>
-                        If the button doesn't work, copy and paste this link into your browser:<br>
+                        <p><strong style="color: #fafafa;">Having trouble?</strong><br>
+                        <span style="color: #9ca3af;">If the button doesn't work, copy and paste this link into your browser:</span><br>
                         <span style="word-break: break-all; color: #00D564; font-family: monospace;">{reset_url}</span></p>
                     </div>
                 </div>
