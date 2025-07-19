@@ -43,6 +43,33 @@ def get_current_domain():
     else:
         return 'http://localhost:8501'
 
+def get_user_email():
+    """Get a valid email address for Stripe, with proper fallbacks"""
+    import re
+    
+    # Try to get email from session state
+    email = st.session_state.get('email', '')
+    
+    # Validate email format
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    
+    if email and re.match(email_pattern, email):
+        return email
+    
+    # Try username if it looks like an email
+    username = st.session_state.get('username', '')
+    if username and re.match(email_pattern, username):
+        return username
+    
+    # If username exists but isn't email format, create email from it
+    if username:
+        # Remove any special characters and create a valid email
+        clean_username = re.sub(r'[^a-zA-Z0-9]', '', username)
+        return f"{clean_username}@demo.squeeze-ai.com"
+    
+    # Final fallback
+    return "user@demo.squeeze-ai.com"
+
 # Page config
 st.set_page_config(
     page_title="Squeeze Ai - Stock Squeeze Analysis", 
@@ -809,7 +836,7 @@ else:
                     
                     session = stripe_handler.create_checkout_session(
                         user_id=st.session_state.get('user_id', 1),
-                        email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
+                        email=get_user_email(),
                         success_url=success_url,
                         cancel_url=domain
                     )
@@ -1066,7 +1093,7 @@ else:
                         
                         session = stripe_handler.create_checkout_session(
                             user_id=st.session_state.get('user_id', 1),
-                            email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
+                            email=get_user_email(),
                             success_url=success_url,
                             cancel_url=domain
                         )
@@ -1284,7 +1311,7 @@ else:
                                 
                                 session = stripe_handler.create_checkout_session(
                                     user_id=st.session_state.get('user_id', 1),
-                                    email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
+                                    email=get_user_email(),
                                     success_url=success_url,
                                     cancel_url=domain
                                 )
@@ -1366,7 +1393,7 @@ else:
                     
                     session = stripe_handler.create_checkout_session(
                         user_id=st.session_state.get('user_id', 1),
-                        email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
+                        email=get_user_email(),
                         success_url=success_url,
                         cancel_url=domain
                     )
@@ -1481,7 +1508,7 @@ else:
                             
                             session = stripe_handler.create_checkout_session(
                                 user_id=st.session_state.get('user_id', 1),
-                                email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
+                                email=get_user_email(),
                                 success_url=success_url,
                                 cancel_url=domain
                             )
@@ -1684,8 +1711,7 @@ else:
                 try:
                     domain = get_current_domain()
                     # Get user email
-                    user = authenticator.get_user_by_username(st.session_state.username)
-                    user_email = user.email if user else 'user@example.com'
+                    user_email = get_user_email()
                     
                     # Include session ID in success URL
                     session_id = st.session_state.get('session_id', '')
@@ -2458,8 +2484,7 @@ else:
                     try:
                         domain = get_current_domain()
                         # Get user email
-                        user = authenticator.get_user_by_username(st.session_state.username)
-                        user_email = user.email if user else 'user@example.com'
+                        user_email = get_user_email()
                         
                         # Include session ID in success URL
                         session_id = st.session_state.get('session_id', '')
