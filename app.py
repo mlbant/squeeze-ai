@@ -19,6 +19,7 @@ from postgresql_auth import authenticator
 from stripe_handler import StripeHandler
 from subscription_handler import SubscriptionHandler
 from session_manager import session_manager
+from analytics import analytics
 dotenv.load_dotenv()
 
 # Initialize subscription handler
@@ -71,19 +72,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Google Analytics (add your GA4 measurement ID)
-GA_MEASUREMENT_ID = os.getenv('GA_MEASUREMENT_ID', '')
-if GA_MEASUREMENT_ID:
-    st.markdown(f"""
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id={GA_MEASUREMENT_ID}"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){{dataLayer.push(arguments);}}
-      gtag('js', new Date());
-      gtag('config', '{GA_MEASUREMENT_ID}');
-    </script>
-    """, unsafe_allow_html=True)
+# Initialize Google Analytics with enhanced tracking
+analytics.inject_google_analytics()
 
 # PostgreSQL authentication is now imported from postgresql_auth
 # No need to load config.yaml anymore - using persistent database
@@ -483,6 +473,10 @@ if 'subscribed' in query_params and query_params['subscribed'] == 'true':
             
             # Save updated session with subscription status
             save_session(st.session_state.username)
+            
+            # Track successful subscription conversion
+            analytics.track_conversion("subscription_success", value=29, currency="USD")
+            analytics.track_event("subscription_start", "conversion", "pro_plan", 29)
             
             st.success("🎉 Welcome to Squeeze AI Pro! Your 14-day free trial has started.")
             st.info("✅ You now have access to all premium features!")
@@ -912,6 +906,8 @@ else:
             """, unsafe_allow_html=True)
             
             if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="top_squeezes_upgrade"):
+                # Track upgrade button click
+                analytics.track_event("upgrade_button_click", "conversion", "top_squeezes_section")
                 try:
                     domain = get_current_domain()
                     # Include session ID in success URL for proper session restoration
@@ -1164,6 +1160,8 @@ else:
                 """, unsafe_allow_html=True)
                 
                 if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="scan_upgrade"):
+                    # Track upgrade button click
+                    analytics.track_event("upgrade_button_click", "conversion", "scan_section")
                     # Debug: Show Stripe key status
                     import os
                     stripe_key = os.getenv('STRIPE_SECRET_KEY')
@@ -1469,6 +1467,8 @@ else:
             """, unsafe_allow_html=True)
             
             if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="stock_analysis_upgrade"):
+                # Track upgrade button click
+                analytics.track_event("upgrade_button_click", "conversion", "stock_analysis_section")
                 try:
                     domain = get_current_domain()
                     # Include session ID in success URL for proper session restoration
@@ -1584,6 +1584,8 @@ else:
                     """, unsafe_allow_html=True)
                     
                     if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="search_upgrade"):
+                        # Track upgrade button click
+                        analytics.track_event("upgrade_button_click", "conversion", "search_section")
                         try:
                             domain = get_current_domain()
                             # Include session ID in success URL for proper session restoration
@@ -1792,6 +1794,8 @@ else:
             """, unsafe_allow_html=True)
             
             if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="portfolio_upgrade"):
+                # Track upgrade button click
+                analytics.track_event("upgrade_button_click", "conversion", "portfolio_section")
                 try:
                     domain = get_current_domain()
                     # Get user email
