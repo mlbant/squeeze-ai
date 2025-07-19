@@ -516,7 +516,11 @@ if 'reset_token' in query_params:
         # Check if our specific token exists
         token_exists = db.query(ResetToken).filter(ResetToken.token == reset_token).first()
         if token_exists:
+            from datetime import datetime
+            current_time = datetime.utcnow()
             st.write(f"DEBUG: Token found in database - Username: {token_exists.username}, Used: {token_exists.used}, Expires: {token_exists.expires_at}")
+            st.write(f"DEBUG: Current UTC time: {current_time}")
+            st.write(f"DEBUG: Token expired? {token_exists.expires_at <= current_time}")
         else:
             st.write("DEBUG: Token NOT found in database")
         

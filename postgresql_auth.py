@@ -232,6 +232,20 @@ class PostgreSQLAuthenticator:
             # Debug: Check token details
             logger.info(f"Token found - Username: {token_exists.username}, Used: {token_exists.used}, Expires: {token_exists.expires_at}, Current time: {datetime.utcnow()}")
             
+            # More detailed debugging for the multi-condition query
+            current_time = datetime.utcnow()
+            logger.info(f"Checking conditions: token={token[:10]}..., used={token_exists.used}, expires_at={token_exists.expires_at}, current_time={current_time}")
+            
+            # Check each condition separately
+            token_match = db.query(ResetToken).filter(ResetToken.token == token).first()
+            logger.info(f"Token match check: {'PASS' if token_match else 'FAIL'}")
+            
+            used_check = db.query(ResetToken).filter(ResetToken.token == token, ResetToken.used == False).first()
+            logger.info(f"Used check: {'PASS' if used_check else 'FAIL'}")
+            
+            expire_check = db.query(ResetToken).filter(ResetToken.token == token, ResetToken.expires_at > current_time).first()
+            logger.info(f"Expiry check: {'PASS' if expire_check else 'FAIL'}")
+            
             reset_token = db.query(ResetToken).filter(
                 ResetToken.token == token,
                 ResetToken.used == False,
@@ -242,7 +256,9 @@ class PostgreSQLAuthenticator:
                 if token_exists.used:
                     logger.error(f"Reset token already used: {token}")
                 elif token_exists.expires_at <= datetime.utcnow():
-                    logger.error(f"Reset token expired: {token}, expired at {token_exists.expires_at}")
+                    logger.error(f"Reset token expired: {token}, expired at {token_exists.expires_at}, current: {datetime.utcnow()}")
+                else:
+                    logger.error(f"Reset token validation failed for unknown reason. Token conditions - Used: {token_exists.used}, Expires: {token_exists.expires_at}, Current: {datetime.utcnow()}")
                 db.close()
                 return False
             
