@@ -429,6 +429,8 @@ if 'subscribed' in query_params and query_params['subscribed'] == 'true':
             
             # Activate subscription
             st.session_state.subscribed = True
+            # Store subscription start date for proper billing calculation
+            st.session_state.subscription_start_date = pd.Timestamp.now().isoformat()
             
             # Save updated session with subscription status
             save_session(st.session_state.username)
@@ -2301,13 +2303,65 @@ else:
             if st.session_state.get('subscribed', False):
                 st.success("✅ Pro Member")
                 st.markdown("")
-                st.write("Next billing date: " + pd.Timestamp.now().strftime('%B %d, %Y'))
-                st.markdown("")
-                if st.button("Cancel Subscription", type="secondary"):
+                
+                # Calculate proper billing date (14 days from subscription start)
+                # If we have subscription start date, use it; otherwise estimate from current date
+                subscription_start = st.session_state.get('subscription_start_date')
+                if subscription_start:
+                    try:
+                        start_date = pd.to_datetime(subscription_start)
+                        next_billing = start_date + pd.Timedelta(days=14)
+                    except:
+                        # Fallback if date parsing fails
+                        next_billing = pd.Timestamp.now() + pd.Timedelta(days=13)
+                else:
+                    # Estimate: assume they just subscribed, so 13 days left in trial
+                    next_billing = pd.Timestamp.now() + pd.Timedelta(days=13)
+                
+                st.write(f"Next billing date: {next_billing.strftime('%B %d, %Y')}")
+                
+                # Check if subscription has expired
+                if pd.Timestamp.now() > next_billing:
+                    # Subscription has expired, revert to free
                     st.session_state.subscribed = False
-                    save_session(st.session_state.username)  # Save subscription status
-                    st.info("Subscription cancelled")
+                    st.session_state.subscription_cancelled = False
+                    save_session(st.session_state.username)
+                    st.warning("Your Pro subscription has expired. Please upgrade to continue using Pro features.")
                     st.rerun()
+                
+                # Check if subscription is cancelled but still active
+                is_cancelled = st.session_state.get('subscription_cancelled', False)
+                if is_cancelled:
+                    st.warning("⚠️ Subscription cancelled - active until billing period ends")
+                    st.write(f"Access expires: {next_billing.strftime('%B %d, %Y')}")
+                else:
+                    st.markdown("")
+                    
+                    # Add confirmation dialog for cancellation
+                    if 'show_cancel_confirm' not in st.session_state:
+                        st.session_state.show_cancel_confirm = False
+                    
+                    if st.session_state.show_cancel_confirm:
+                        st.warning("⚠️ Are you sure you want to cancel your subscription?")
+                        st.write("Your Pro access will continue until the end of your current billing period.")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("Yes, Cancel", type="primary"):
+                                # Mark as cancelled but keep active until billing period ends
+                                st.session_state.subscription_cancelled = True
+                                st.session_state.show_cancel_confirm = False
+                                save_session(st.session_state.username)
+                                st.success("Subscription cancelled. You'll retain Pro access until your billing period ends.")
+                                st.rerun()
+                        with col2:
+                            if st.button("Keep Subscription", type="secondary"):
+                                st.session_state.show_cancel_confirm = False
+                                st.rerun()
+                    else:
+                        if st.button("Cancel Subscription", type="secondary"):
+                            st.session_state.show_cancel_confirm = True
+                            st.rerun()
             else:
                 st.warning("⚠️ Free Account")
                 st.markdown("")
