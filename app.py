@@ -71,6 +71,20 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Google Analytics (add your GA4 measurement ID)
+GA_MEASUREMENT_ID = os.getenv('GA_MEASUREMENT_ID', '')
+if GA_MEASUREMENT_ID:
+    st.markdown(f"""
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={GA_MEASUREMENT_ID}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){{dataLayer.push(arguments);}}
+      gtag('js', new Date());
+      gtag('config', '{GA_MEASUREMENT_ID}');
+    </script>
+    """, unsafe_allow_html=True)
+
 # PostgreSQL authentication is now imported from postgresql_auth
 # No need to load config.yaml anymore - using persistent database
 
