@@ -185,6 +185,8 @@ class PostgreSQLAuthenticator:
             token = self.generate_token()
             expires_at = datetime.utcnow() + timedelta(hours=1)
             
+            logger.info(f"Creating reset token for user: {username}, token: {token[:10]}..., expires at: {expires_at}")
+            
             # Save reset token
             reset_token = ResetToken(
                 username=username,
@@ -195,6 +197,14 @@ class PostgreSQLAuthenticator:
             
             db.add(reset_token)
             db.commit()
+            
+            # Verify token was saved
+            saved_token = db.query(ResetToken).filter(ResetToken.token == token).first()
+            if saved_token:
+                logger.info(f"Reset token successfully saved to database for user: {username}")
+            else:
+                logger.error(f"Failed to save reset token to database for user: {username}")
+            
             db.close()
             
             logger.info(f"Reset token created for user: {username}")

@@ -500,6 +500,30 @@ if 'page' in query_params:
 if 'reset_token' in query_params:
     reset_token = query_params['reset_token']
     
+    # Debug token information
+    st.write(f"DEBUG: Received reset token: {reset_token[:20]}...{reset_token[-10:] if len(reset_token) > 30 else reset_token}")
+    st.write(f"DEBUG: Token length: {len(reset_token)}")
+    
+    # Debug: Test database connection and table existence
+    try:
+        from database_config import get_db, ResetToken
+        db = next(get_db())
+        
+        # Check if reset_tokens table exists and has data
+        token_count = db.query(ResetToken).count()
+        st.write(f"DEBUG: Found {token_count} tokens in reset_tokens table")
+        
+        # Check if our specific token exists
+        token_exists = db.query(ResetToken).filter(ResetToken.token == reset_token).first()
+        if token_exists:
+            st.write(f"DEBUG: Token found in database - Username: {token_exists.username}, Used: {token_exists.used}, Expires: {token_exists.expires_at}")
+        else:
+            st.write("DEBUG: Token NOT found in database")
+        
+        db.close()
+    except Exception as e:
+        st.write(f"DEBUG: Database check error: {str(e)}")
+    
     # PostgreSQL-based password reset (simplified for now)
     st.markdown("## Reset Your Password")
     st.markdown("Enter your new password below:")
@@ -513,6 +537,7 @@ if 'reset_token' in query_params:
                 if new_password == confirm_password:
                     if len(new_password) >= 6:
                         # Use PostgreSQL reset password method
+                        st.write(f"DEBUG: Attempting to reset password with token: {reset_token[:20]}...")
                         success = authenticator.reset_password(reset_token, new_password)
                         
                         if success:
@@ -520,6 +545,7 @@ if 'reset_token' in query_params:
                             st.info("You can now return to the login page.")
                         else:
                             st.error("Password reset failed. The token may be expired or invalid.")
+                            st.error("DEBUG: Check the application logs for more details about why the token validation failed.")
                     else:
                         st.error("Password must be at least 6 characters long.")
                 else:
