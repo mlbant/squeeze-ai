@@ -549,15 +549,14 @@ if 'reset_token' in query_params:
                             st.write("DEBUG: Using direct password reset workaround")
                             try:
                                 from database_config import get_db, User
-                                from werkzeug.security import generate_password_hash
                                 from datetime import datetime
                                 
                                 db = next(get_db())
                                 user = db.query(User).filter(User.username == token_exists.username).first()
                                 
                                 if user:
-                                    # Update password directly
-                                    user.password_hash = generate_password_hash(new_password)
+                                    # Update password using the authenticator's hash method
+                                    user.password_hash = authenticator.hash_password(new_password)
                                     user.updated_at = datetime.utcnow()
                                     
                                     # Mark token as used
