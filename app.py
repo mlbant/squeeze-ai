@@ -420,10 +420,10 @@ query_params = st.query_params
 
 # Handle successful subscription from Stripe redirect
 if 'subscribed' in query_params and query_params['subscribed'] == 'true':
-    # Check if we have a session ID in the URL
-    if 'session_id' in query_params:
+    # Check if we have a user session ID in the URL
+    if 'user_session' in query_params:
         # Restore session ID
-        st.session_state.session_id = query_params['session_id']
+        st.session_state.session_id = query_params['user_session']
         
         # Load session data
         st.write(f"DEBUG: Attempting to load session with ID: {st.session_state.get('session_id')}")
@@ -1036,7 +1036,7 @@ else:
                         
                         # Include session ID in success URL for proper session restoration
                         session_id = st.session_state.get('session_id', '')
-                        success_url = f"{domain}?subscribed=true&session_id={session_id}" if session_id else f"{domain}?subscribed=true"
+                        success_url = f"{domain}?subscribed=true&user_session={session_id}" if session_id else f"{domain}?subscribed=true"
                         
                         session = stripe_handler.create_checkout_session(
                             user_id=st.session_state.get('user_id', 1),
@@ -1261,7 +1261,7 @@ else:
                                 domain = get_current_domain()
                                 # Include session ID in success URL for proper session restoration
                                 session_id = st.session_state.get('session_id', '')
-                                success_url = f"{domain}?subscribed=true&session_id={session_id}" if session_id else f"{domain}?subscribed=true"
+                                success_url = f"{domain}?subscribed=true&user_session={session_id}" if session_id else f"{domain}?subscribed=true"
                                 
                                 session = stripe_handler.create_checkout_session(
                                     user_id=st.session_state.get('user_id', 1),
@@ -1437,7 +1437,7 @@ else:
                             domain = get_current_domain()
                             # Include session ID in success URL for proper session restoration
                             session_id = st.session_state.get('session_id', '')
-                            success_url = f"{domain}?subscribed=true&session_id={session_id}" if session_id else f"{domain}?subscribed=true"
+                            success_url = f"{domain}?subscribed=true&user_session={session_id}" if session_id else f"{domain}?subscribed=true"
                             
                             session = stripe_handler.create_checkout_session(
                                 user_id=st.session_state.get('user_id', 1),
@@ -1659,7 +1659,7 @@ else:
                     
                     # Include session ID in success URL
                     session_id = st.session_state.get('session_id', '')
-                    success_url = f"{domain}?subscribed=true&session_id={session_id}" if session_id else f"{domain}?subscribed=true"
+                    success_url = f"{domain}?subscribed=true&user_session={session_id}" if session_id else f"{domain}?subscribed=true"
                     
                     session = stripe_handler.create_checkout_session(
                         user_id=st.session_state.get('user_id', 1),
@@ -2382,7 +2382,7 @@ else:
                         
                         # Include session ID in success URL
                         session_id = st.session_state.get('session_id', '')
-                        success_url = f"{domain}?subscribed=true&session_id={session_id}" if session_id else f"{domain}?subscribed=true"
+                        success_url = f"{domain}?subscribed=true&user_session={session_id}" if session_id else f"{domain}?subscribed=true"
                         
                         session = stripe_handler.create_checkout_session(
                             user_id=st.session_state.get('user_id', 1),
