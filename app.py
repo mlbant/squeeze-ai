@@ -799,6 +799,37 @@ else:
                 </ul>
             </div>
             """, unsafe_allow_html=True)
+            
+            if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="top_squeezes_upgrade"):
+                try:
+                    domain = get_current_domain()
+                    # Include session ID in success URL for proper session restoration
+                    session_id = st.session_state.get('session_id', '')
+                    success_url = f"{domain}?subscribed=true&user_session={session_id}" if session_id else f"{domain}?subscribed=true"
+                    
+                    session = stripe_handler.create_checkout_session(
+                        user_id=st.session_state.get('user_id', 1),
+                        email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
+                        success_url=success_url,
+                        cancel_url=domain
+                    )
+                    if session:
+                        st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
+                        st.info("✅ 14-day FREE trial - No charge until trial ends!")
+                    else:
+                        st.error("Unable to create checkout session")
+                        # Show the actual Stripe error if available
+                        if hasattr(stripe_handler, 'last_error') and stripe_handler.last_error:
+                            st.error(f"Payment Error: {stripe_handler.last_error}")
+                except Exception as e:
+                    st.error(f"Payment setup error: {str(e)}")
+                    import traceback
+                    st.error(f"Debug traceback: {traceback.format_exc()}")
+                    # Fallback to direct activation
+                    st.session_state.subscribed = True
+                    save_session(st.session_state.username)
+                    st.success("🎉 Pro activated! (Stripe unavailable)")
+                    st.rerun()
         
         # Display previous scan results if available and no new scan requested
         # Only show saved results for subscribed users (free users can't access saved results)
@@ -1325,6 +1356,37 @@ else:
                 </ul>
             </div>
             """, unsafe_allow_html=True)
+            
+            if st.button("🔓 Upgrade to Pro - $29/month (14-day FREE trial)", type="primary", key="stock_analysis_upgrade"):
+                try:
+                    domain = get_current_domain()
+                    # Include session ID in success URL for proper session restoration
+                    session_id = st.session_state.get('session_id', '')
+                    success_url = f"{domain}?subscribed=true&user_session={session_id}" if session_id else f"{domain}?subscribed=true"
+                    
+                    session = stripe_handler.create_checkout_session(
+                        user_id=st.session_state.get('user_id', 1),
+                        email=st.session_state.get('email', st.session_state.get('username', 'user@example.com')),
+                        success_url=success_url,
+                        cancel_url=domain
+                    )
+                    if session:
+                        st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
+                        st.info("✅ 14-day FREE trial - No charge until trial ends!")
+                    else:
+                        st.error("Unable to create checkout session")
+                        # Show the actual Stripe error if available
+                        if hasattr(stripe_handler, 'last_error') and stripe_handler.last_error:
+                            st.error(f"Payment Error: {stripe_handler.last_error}")
+                except Exception as e:
+                    st.error(f"Payment setup error: {str(e)}")
+                    import traceback
+                    st.error(f"Debug traceback: {traceback.format_exc()}")
+                    # Fallback to direct activation
+                    st.session_state.subscribed = True
+                    save_session(st.session_state.username)
+                    st.success("🎉 Pro activated! (Stripe unavailable)")
+                    st.rerun()
         
         # Display previous analysis results if available and no new analysis requested
         # Only show saved results for subscribed users (free users can't access saved results)
