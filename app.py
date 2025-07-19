@@ -422,8 +422,13 @@ query_params = st.query_params
 if 'subscribed' in query_params and query_params['subscribed'] == 'true':
     # Check if we have a user session ID in the URL
     if 'user_session' in query_params:
-        # Restore session ID
-        st.session_state.session_id = query_params['user_session']
+        # Restore session ID, clean it from Stripe's appended session_id
+        raw_session_id = query_params['user_session']
+        # Split at '?session_id=' to remove Stripe's checkout session ID
+        clean_session_id = raw_session_id.split('?session_id=')[0] if '?session_id=' in raw_session_id else raw_session_id
+        st.session_state.session_id = clean_session_id
+        st.write(f"DEBUG: Raw session from URL: {raw_session_id}")
+        st.write(f"DEBUG: Cleaned session ID: {clean_session_id}")
         
         # Load session data
         st.write(f"DEBUG: Attempting to load session with ID: {st.session_state.get('session_id')}")
