@@ -65,13 +65,124 @@ class EmailService:
         <!DOCTYPE html>
         <html>
         <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                body {{ font-family: Arial, sans-serif; background-color: #0e1117; color: #fafafa; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background-color: #00D564; color: #0e1117; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
-                .content {{ background-color: #1f2937; padding: 30px; border-radius: 0 0 8px 8px; }}
-                .button {{ background-color: #00D564; color: #0e1117; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin: 20px 0; }}
-                .footer {{ text-align: center; margin-top: 30px; color: #9ca3af; font-size: 14px; }}
+                * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+                body {{ 
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
+                    background-color: #ffffff !important; 
+                    color: #1f2937 !important; 
+                    line-height: 1.6;
+                    -webkit-text-size-adjust: 100%;
+                    -ms-text-size-adjust: 100%;
+                }}
+                .container {{ 
+                    max-width: 600px; 
+                    margin: 0 auto; 
+                    padding: 20px; 
+                    background-color: #ffffff !important;
+                }}
+                .header {{ 
+                    background: linear-gradient(135deg, #00D564 0%, #00E56F 100%);
+                    color: #ffffff !important; 
+                    padding: 40px 30px; 
+                    text-align: center; 
+                    border-radius: 12px 12px 0 0;
+                    box-shadow: 0 4px 20px rgba(0, 213, 100, 0.2);
+                }}
+                .header h1 {{ 
+                    font-size: 28px; 
+                    font-weight: 700; 
+                    margin-bottom: 8px; 
+                    color: #ffffff !important;
+                    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                }}
+                .content {{ 
+                    background-color: #ffffff !important; 
+                    padding: 40px 30px; 
+                    border-radius: 0 0 12px 12px;
+                    border: 1px solid #e5e7eb;
+                    border-top: none;
+                }}
+                .content h2 {{ 
+                    font-size: 24px; 
+                    color: #1f2937 !important; 
+                    margin-bottom: 20px; 
+                    font-weight: 600;
+                }}
+                .content h3 {{ 
+                    font-size: 18px; 
+                    color: #374151 !important; 
+                    margin: 25px 0 15px 0; 
+                    font-weight: 600;
+                }}
+                .content p {{ 
+                    font-size: 16px; 
+                    color: #4b5563 !important; 
+                    margin-bottom: 20px; 
+                    line-height: 1.7;
+                }}
+                .content ul {{ 
+                    margin: 15px 0 25px 20px; 
+                    color: #4b5563 !important;
+                }}
+                .content li {{ 
+                    margin-bottom: 12px; 
+                    font-size: 16px; 
+                    color: #4b5563 !important;
+                    line-height: 1.6;
+                }}
+                .content li strong {{ 
+                    color: #1f2937 !important; 
+                    font-weight: 600;
+                }}
+                .button {{ 
+                    background: linear-gradient(135deg, #00D564 0%, #00E56F 100%);
+                    color: #ffffff !important; 
+                    padding: 16px 32px; 
+                    text-decoration: none; 
+                    border-radius: 8px; 
+                    font-weight: 600; 
+                    font-size: 16px;
+                    display: inline-block; 
+                    margin: 25px 0;
+                    box-shadow: 0 4px 14px rgba(0, 213, 100, 0.3);
+                    transition: all 0.3s ease;
+                }}
+                .button:hover {{ 
+                    background: linear-gradient(135deg, #00E56F 0%, #00F57A 100%);
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(0, 213, 100, 0.4);
+                }}
+                .footer {{ 
+                    text-align: center; 
+                    margin-top: 40px; 
+                    padding-top: 30px;
+                    border-top: 1px solid #e5e7eb;
+                    color: #9ca3af !important; 
+                    font-size: 14px; 
+                    line-height: 1.5;
+                }}
+                .footer p {{ 
+                    margin: 8px 0; 
+                    color: #9ca3af !important;
+                }}
+                .emoji {{ font-size: 20px; margin-right: 8px; }}
+                .feature-list {{ 
+                    background-color: #f9fafb; 
+                    padding: 20px; 
+                    border-radius: 8px; 
+                    margin: 20px 0;
+                    border-left: 4px solid #00D564;
+                }}
+                @media only screen and (max-width: 600px) {{
+                    .container {{ padding: 10px; }}
+                    .header, .content {{ padding: 30px 20px; }}
+                    .header h1 {{ font-size: 24px; }}
+                    .content h2 {{ font-size: 20px; }}
+                    .button {{ padding: 14px 28px; font-size: 15px; }}
+                }}
             </style>
         </head>
         <body>
@@ -81,35 +192,37 @@ class EmailService:
                 </div>
                 <div class="content">
                     <h2>Hi {username}!</h2>
-                    <p>Thank you for joining Squeeze Ai - your Ai-powered short squeeze analysis platform.</p>
+                    <p>Thank you for joining <strong>Squeeze Ai</strong> - your AI-powered short squeeze analysis platform.</p>
                     
-                    <h3>What you can do now:</h3>
-                    <ul>
-                        <li>🔍 <strong>Free Market Scan:</strong> Discover top squeeze candidates</li>
-                        <li>📊 <strong>Free Stock Analysis:</strong> Analyze any stock for squeeze potential</li>
-                        <li>📈 <strong>Interactive Charts:</strong> View historical price data</li>
-                    </ul>
-                    
-                    <h3>Want more? Upgrade to Pro:</h3>
-                    <ul>
-                        <li>✅ Unlimited market scans and stock analysis</li>
-                        <li>✅ Advanced filtering options</li>
-                        <li>✅ Portfolio tracking with real-time updates</li>
-                        <li>✅ Priority support</li>
-                    </ul>
-                    
-                    <div style="text-align: center;">
-                        <a href="https://squeeze-ai.com" class="button">Start Analyzing Stocks</a>
+                    <div class="feature-list">
+                        <h3>🎯 What you can do right now:</h3>
+                        <ul>
+                            <li><span class="emoji">🔍</span><strong>Free Market Scan:</strong> Discover top squeeze candidates</li>
+                            <li><span class="emoji">📊</span><strong>Free Stock Analysis:</strong> Analyze any stock for squeeze potential</li>
+                            <li><span class="emoji">📈</span><strong>Interactive Charts:</strong> View historical price data</li>
+                        </ul>
                     </div>
                     
-                    <p>Need help? Reply to this email or contact our support team.</p>
+                    <h3>🚀 Want more? Upgrade to Pro:</h3>
+                    <ul>
+                        <li><span class="emoji">✅</span>Unlimited market scans and stock analysis</li>
+                        <li><span class="emoji">✅</span>Advanced filtering options</li>
+                        <li><span class="emoji">✅</span>Portfolio tracking with real-time updates</li>
+                        <li><span class="emoji">✅</span>Priority support</li>
+                    </ul>
                     
-                    <p>Happy trading!<br>
-                    The Squeeze Ai Team</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="https://squeeze-ai.onrender.com" class="button">Start Analyzing Stocks</a>
+                    </div>
+                    
+                    <p>Need help? Simply reply to this email or contact our support team.</p>
+                    
+                    <p><strong>Happy trading!</strong><br>
+                    The Squeeze Ai Team 💼</p>
                 </div>
                 <div class="footer">
-                    <p>© 2025 Squeeze Ai. All rights reserved.</p>
-                    <p>This email was sent to {user_email}</p>
+                    <p><strong>© 2025 Squeeze Ai</strong> - All rights reserved</p>
+                    <p>This email was sent to <strong>{user_email}</strong></p>
                 </div>
             </div>
         </body>
