@@ -542,12 +542,43 @@ if 'reset_token' in query_params:
                     if len(new_password) >= 6:
                         # Use PostgreSQL reset password method
                         st.write(f"DEBUG: Attempting to reset password with token: {reset_token[:20]}...")
-                        success = authenticator.reset_password(reset_token, new_password)
                         
-                        if success:
-                            st.success("Password reset successful! You can now log in with your new password.")
-                            st.info("You can now return to the login page.")
+                        # TEMPORARY WORKAROUND: Since we validated the token above and it's valid, 
+                        # bypass the broken validation and reset directly
+                        if token_exists and not token_exists.used and token_exists.expires_at > current_time:
+                            st.write("DEBUG: Using direct password reset workaround")
+                            try:
+                                from database_config import get_db, User
+                                from werkzeug.security import generate_password_hash
+                                from datetime import datetime
+                                
+                                db = next(get_db())
+                                user = db.query(User).filter(User.username == token_exists.username).first()
+                                
+                                if user:
+                                    # Update password directly
+                                    user.password_hash = generate_password_hash(new_password)
+                                    user.updated_at = datetime.utcnow()
+                                    
+                                    # Mark token as used
+                                    token_exists.used = True
+                                    
+                                    db.commit()
+                                    db.close()
+                                    
+                                    st.success("Password reset successful! You can now log in with your new password.")
+                                    st.info("You can now return to the login page.")
+                                    success = True
+                                else:
+                                    st.error("User not found.")
+                                    success = False
+                            except Exception as e:
+                                st.error(f"Direct reset failed: {str(e)}")
+                                success = False
                         else:
+                            success = authenticator.reset_password(reset_token, new_password)
+                        
+                        if not success:
                             st.error("Password reset failed. The token may be expired or invalid.")
                             st.error("DEBUG: Check the application logs for more details about why the token validation failed.")
                     else:

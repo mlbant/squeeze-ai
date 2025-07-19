@@ -230,8 +230,10 @@ class PostgreSQLAuthenticator:
                 db.close()
                 return False
             
-            # Manual validation - much simpler and more reliable
+            # Manual validation with detailed logging
             current_time = datetime.utcnow()
+            
+            logger.info(f"VALIDATION DEBUG: Token={token[:10]}..., User={reset_token.username}, Used={reset_token.used}, Expires={reset_token.expires_at}, Current={current_time}")
             
             if reset_token.used:
                 logger.error(f"Reset token already used: {token}")
