@@ -26,16 +26,8 @@ class StripeHandler:
         """Create Stripe checkout session"""
         self.last_error = None  # Store last error for debugging
         try:
-            # Debug: Log the API key status
             api_key = os.getenv('STRIPE_SECRET_KEY')
-            print(f"DEBUG: API key exists: {bool(api_key)}")
-            print(f"DEBUG: API key starts with sk_: {api_key.startswith('sk_') if api_key else False}")
-            print(f"DEBUG: Creating session for user {user_id}, email {email}")
-            print(f"DEBUG: Success URL: {success_url}")
-            print(f"DEBUG: Cancel URL: {cancel_url}")
-            
             if not api_key:
-                print("ERROR: STRIPE_SECRET_KEY not found in environment")
                 return None
             # Create or get customer
             customers = stripe.Customer.list(email=email, limit=1)

@@ -305,33 +305,22 @@ def load_session():
     """Load session from database"""
     try:
         session_id = st.session_state.get('session_id')
-        print(f"DEBUG load_session: session_id = {session_id}")
         if not session_id:
-            print("DEBUG load_session: No session_id found")
             return None
             
         session_info = session_manager.get_session(session_id)
-        print(f"DEBUG load_session: session_info = {session_info is not None}")
         
         if session_info:
-            print(f"DEBUG load_session: username = {session_info.get('username')}")
             # Check if user exists in PostgreSQL
-            user_exists = authenticator.get_user_by_username(session_info['username'])
-            print(f"DEBUG load_session: user_exists = {user_exists is not None}")
-            if user_exists:
+            if authenticator.get_user_by_username(session_info['username']):
                 # Merge session data
                 session_data = session_info['session_data']
                 session_data['username'] = session_info['username']
-                print(f"DEBUG load_session: returning session data for {session_info['username']}")
                 return session_data
             else:
                 # Invalidate session
-                print(f"DEBUG load_session: user not found, invalidating session")
                 session_manager.invalidate_session(session_id)
-        else:
-            print("DEBUG load_session: No session info found in database")
     except Exception as e:
-        print(f"DEBUG load_session: Exception = {str(e)}")
         pass
     return None
 
@@ -427,15 +416,9 @@ if 'subscribed' in query_params and query_params['subscribed'] == 'true':
         # Split at '?session_id=' to remove Stripe's checkout session ID
         clean_session_id = raw_session_id.split('?session_id=')[0] if '?session_id=' in raw_session_id else raw_session_id
         st.session_state.session_id = clean_session_id
-        st.write(f"DEBUG: Raw session from URL: {raw_session_id}")
-        st.write(f"DEBUG: Cleaned session ID: {clean_session_id}")
         
         # Load session data
-        st.write(f"DEBUG: Attempting to load session with ID: {st.session_state.get('session_id')}")
         session_data = load_session()
-        st.write(f"DEBUG: Session data loaded: {session_data is not None}")
-        if session_data:
-            st.write(f"DEBUG: Session data username: {session_data.get('username')}")
         
         if session_data:
             # Restore authentication
@@ -1030,14 +1013,9 @@ else:
                     # Debug: Show Stripe key status
                     import os
                     stripe_key = os.getenv('STRIPE_SECRET_KEY')
-                    st.write(f"DEBUG: Stripe key present: {stripe_key is not None}")
-                    st.write(f"DEBUG: Stripe key starts with: {stripe_key[:15] if stripe_key else 'None'}...")
                     
                     try:
                         domain = get_current_domain()
-                        st.write(f"DEBUG: Domain: {domain}")
-                        st.write(f"DEBUG: User ID: {st.session_state.get('user_id', 1)}")
-                        st.write(f"DEBUG: Email: {st.session_state.get('email', st.session_state.get('username', 'user@example.com'))}")
                         
                         # Include session ID in success URL for proper session restoration
                         session_id = st.session_state.get('session_id', '')
@@ -1050,15 +1028,8 @@ else:
                             cancel_url=domain
                         )
                         
-                        st.write(f"DEBUG: Session created: {session is not None}")
-                        
-                        # Debug Stripe configuration
-                        stripe_key = os.getenv('STRIPE_SECRET_KEY')
-                        st.write(f"DEBUG: Stripe key exists: {bool(stripe_key)}")
-                        st.write(f"DEBUG: Stripe key starts with sk_: {stripe_key.startswith('sk_') if stripe_key else False}")
                         
                         if session:
-                            st.write(f"DEBUG: Session URL: {session.url}")
                             st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
                             st.info("✅ 14-day FREE trial - No charge until trial ends!")
                         else:
@@ -1274,11 +1245,6 @@ else:
                                     success_url=success_url,
                                     cancel_url=domain
                                 )
-                                # Debug Stripe configuration
-                                stripe_key = os.getenv('STRIPE_SECRET_KEY')
-                                st.write(f"DEBUG: Stripe key exists: {bool(stripe_key)}")
-                                st.write(f"DEBUG: Stripe key starts with sk_: {stripe_key.startswith('sk_') if stripe_key else False}")
-                                st.write(f"DEBUG: Session created: {session is not None}")
                                 
                                 if session:
                                     st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
@@ -1287,12 +1253,7 @@ else:
                                     st.error("Unable to create checkout session")
                                     # Show the actual Stripe error if available
                                     if hasattr(stripe_handler, 'last_error') and stripe_handler.last_error:
-                                        st.error(f"Stripe Error: {stripe_handler.last_error}")
-                                    # Show additional error info
-                                    if not stripe_key:
-                                        st.error("❌ STRIPE_SECRET_KEY environment variable not found")
-                                    elif not stripe_key.startswith('sk_'):
-                                        st.error("❌ STRIPE_SECRET_KEY format invalid (should start with sk_)")
+                                        st.error(f"Payment Error: {stripe_handler.last_error}")
                             except Exception as e:
                                 st.error(f"Payment setup error: {str(e)}")
                                 import traceback
@@ -1450,11 +1411,6 @@ else:
                                 success_url=success_url,
                                 cancel_url=domain
                             )
-                            # Debug Stripe configuration
-                            stripe_key = os.getenv('STRIPE_SECRET_KEY')
-                            st.write(f"DEBUG: Stripe key exists: {bool(stripe_key)}")
-                            st.write(f"DEBUG: Stripe key starts with sk_: {stripe_key.startswith('sk_') if stripe_key else False}")
-                            st.write(f"DEBUG: Session created: {session is not None}")
                             
                             if session:
                                 st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
@@ -1463,12 +1419,7 @@ else:
                                 st.error("Unable to create checkout session")
                                 # Show the actual Stripe error if available
                                 if hasattr(stripe_handler, 'last_error') and stripe_handler.last_error:
-                                    st.error(f"Stripe Error: {stripe_handler.last_error}")
-                                # Show additional error info
-                                if not stripe_key:
-                                    st.error("❌ STRIPE_SECRET_KEY environment variable not found")
-                                elif not stripe_key.startswith('sk_'):
-                                    st.error("❌ STRIPE_SECRET_KEY format invalid (should start with sk_)")
+                                    st.error(f"Payment Error: {stripe_handler.last_error}")
                         except Exception as e:
                             st.error(f"Payment setup error: {str(e)}")
                             import traceback
@@ -1672,11 +1623,6 @@ else:
                         success_url=success_url,
                         cancel_url=domain
                     )
-                    # Debug Stripe configuration
-                    stripe_key = os.getenv('STRIPE_SECRET_KEY')
-                    st.write(f"DEBUG: Stripe key exists: {bool(stripe_key)}")
-                    st.write(f"DEBUG: Stripe key starts with sk_: {stripe_key.startswith('sk_') if stripe_key else False}")
-                    st.write(f"DEBUG: Session created: {session is not None}")
                     
                     if session:
                         st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
@@ -1685,12 +1631,7 @@ else:
                         st.error("Unable to create checkout session")
                         # Show the actual Stripe error if available
                         if hasattr(stripe_handler, 'last_error') and stripe_handler.last_error:
-                            st.error(f"Stripe Error: {stripe_handler.last_error}")
-                        # Show additional error info
-                        if not stripe_key:
-                            st.error("❌ STRIPE_SECRET_KEY environment variable not found")
-                        elif not stripe_key.startswith('sk_'):
-                            st.error("❌ STRIPE_SECRET_KEY format invalid (should start with sk_)")
+                            st.error(f"Payment Error: {stripe_handler.last_error}")
                 except Exception as e:
                     st.error(f"Payment setup error: {str(e)}")
                     st.session_state.subscribed = True  # Demo mode
@@ -2395,11 +2336,6 @@ else:
                             success_url=success_url,
                             cancel_url=domain
                         )
-                        # Debug Stripe configuration
-                        stripe_key = os.getenv('STRIPE_SECRET_KEY')
-                        st.write(f"DEBUG: Stripe key exists: {bool(stripe_key)}")
-                        st.write(f"DEBUG: Stripe key starts with sk_: {stripe_key.startswith('sk_') if stripe_key else False}")
-                        st.write(f"DEBUG: Session created: {session is not None}")
                         
                         if session:
                             st.markdown(f"[Complete Payment - Start FREE Trial]({session.url})")
@@ -2408,12 +2344,7 @@ else:
                             st.error("Unable to create checkout session")
                             # Show the actual Stripe error if available
                             if hasattr(stripe_handler, 'last_error') and stripe_handler.last_error:
-                                st.error(f"Stripe Error: {stripe_handler.last_error}")
-                            # Show additional error info
-                            if not stripe_key:
-                                st.error("❌ STRIPE_SECRET_KEY environment variable not found")
-                            elif not stripe_key.startswith('sk_'):
-                                st.error("❌ STRIPE_SECRET_KEY format invalid (should start with sk_)")
+                                st.error(f"Payment Error: {stripe_handler.last_error}")
                     except Exception as e:
                         st.error(f"Payment setup error: {str(e)}")
                         st.session_state.subscribed = True  # Demo mode
