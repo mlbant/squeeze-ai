@@ -246,19 +246,52 @@ class PostgreSQLAuthenticator:
             expire_check = db.query(ResetToken).filter(ResetToken.token == token, ResetToken.expires_at > current_time).first()
             logger.info(f"Expiry check: {'PASS' if expire_check else 'FAIL'}")
             
-            reset_token = db.query(ResetToken).filter(
+            # Try different approaches to the boolean comparison
+            logger.info("Attempting query with ResetToken.used == False")
+            reset_token_v1 = db.query(ResetToken).filter(
                 ResetToken.token == token,
                 ResetToken.used == False,
                 ResetToken.expires_at > datetime.utcnow()
             ).first()
             
+            logger.info("Attempting query with ResetToken.used.is_(False)")
+            reset_token_v2 = db.query(ResetToken).filter(
+                ResetToken.token == token,
+                ResetToken.used.is_(False),
+                ResetToken.expires_at > datetime.utcnow()
+            ).first()
+            
+            logger.info("Attempting query with ~ResetToken.used")
+            reset_token_v3 = db.query(ResetToken).filter(
+                ResetToken.token == token,
+                ~ResetToken.used,
+                ResetToken.expires_at > datetime.utcnow()
+            ).first()
+            
+            logger.info(f"Query results: v1={'FOUND' if reset_token_v1 else 'NULL'}, v2={'FOUND' if reset_token_v2 else 'NULL'}, v3={'FOUND' if reset_token_v3 else 'NULL'}")
+            
+            # Use the first successful query
+            reset_token = reset_token_v1 or reset_token_v2 or reset_token_v3
+            
+            # If all SQL queries failed, try manual validation as a workaround
             if not reset_token:
-                if token_exists.used:
+                logger.error("All SQL queries failed, attempting manual validation")
+                current_time = datetime.utcnow()
+                
+                # Manual validation using the token we already found
+                if token_exists and not token_exists.used and token_exists.expires_at > current_time:
+                    logger.info("Manual validation passed - using existing token")
+                    reset_token = token_exists
+                else:
+                    logger.error(f"Manual validation failed: used={token_exists.used if token_exists else 'N/A'}, expired={token_exists.expires_at <= current_time if token_exists else 'N/A'}")
+            
+            if not reset_token:
+                if token_exists and token_exists.used:
                     logger.error(f"Reset token already used: {token}")
-                elif token_exists.expires_at <= datetime.utcnow():
+                elif token_exists and token_exists.expires_at <= datetime.utcnow():
                     logger.error(f"Reset token expired: {token}, expired at {token_exists.expires_at}, current: {datetime.utcnow()}")
                 else:
-                    logger.error(f"Reset token validation failed for unknown reason. Token conditions - Used: {token_exists.used}, Expires: {token_exists.expires_at}, Current: {datetime.utcnow()}")
+                    logger.error(f"Reset token validation failed for unknown reason. Token conditions - Used: {token_exists.used if token_exists else 'N/A'}, Expires: {token_exists.expires_at if token_exists else 'N/A'}, Current: {datetime.utcnow()}")
                 db.close()
                 return False
             
