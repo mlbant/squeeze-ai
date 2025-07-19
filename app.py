@@ -339,10 +339,22 @@ def load_session():
         
         if session_info:
             # Check if user exists in PostgreSQL
-            if authenticator.get_user_by_username(session_info['username']):
+            user = authenticator.get_user_by_username(session_info['username'])
+            if user:
                 # Merge session data
                 session_data = session_info['session_data']
                 session_data['username'] = session_info['username']
+                
+                # Always verify subscription status from database (fallback for missing data)
+                if 'subscribed' not in session_data or session_data.get('subscribed') is None:
+                    subscription_status = authenticator.get_user_subscription_status(user.id)
+                    session_data['subscribed'] = subscription_status['subscribed']
+                    session_data['subscription_cancelled'] = subscription_status.get('subscription_cancelled', False)
+                    session_data['subscription_start_date'] = subscription_status.get('subscription_start_date', None)
+                    
+                    # Update session with correct subscription data
+                    session_manager.update_session(session_id, session_data)
+                
                 return session_data
             else:
                 # Invalidate session
@@ -466,10 +478,20 @@ if 'subscribed' in query_params and query_params['subscribed'] == 'true':
             st.session_state.username = session_data['username']
             st.session_state.name = session_data.get('name', session_data.get('username', 'User'))
             
-            # Activate subscription
+            # Activate subscription and save to database
             st.session_state.subscribed = True
             # Store subscription start date for proper billing calculation
             st.session_state.subscription_start_date = pd.Timestamp.now().isoformat()
+            
+            # Also update subscription in database to ensure persistence
+            user = authenticator.get_user_by_username(session_data['username'])
+            if user:
+                st.session_state.user_id = user.id
+                authenticator.update_subscription(
+                    user_id=user.id,
+                    plan_type='pro',
+                    status='active'
+                )
             
             # Save updated session with subscription status
             save_session(st.session_state.username)

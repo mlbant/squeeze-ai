@@ -171,6 +171,82 @@ class PostgreSQLAuthenticator:
                 db.close()
             return False
     
+    def get_user_subscription_status(self, user_id: int) -> dict:
+        """Get user's current subscription status from database"""
+        try:
+            if not user_id:
+                return {'subscribed': False}
+                
+            db = next(get_db())
+            
+            # Check if user has an active subscription
+            from database_config import Subscription
+            subscription = db.query(Subscription).filter(
+                Subscription.user_id == user_id,
+                Subscription.status.in_(['active', 'trialing'])
+            ).first()
+            
+            if subscription:
+                logger.info(f"Found active subscription for user {user_id}: {subscription.plan_type}")
+                return {
+                    'subscribed': True,
+                    'subscription_cancelled': subscription.status == 'cancelled',
+                    'subscription_start_date': subscription.started_at.isoformat() if subscription.started_at else None,
+                    'plan_type': subscription.plan_type
+                }
+            else:
+                logger.info(f"No active subscription found for user {user_id}")
+                return {'subscribed': False}
+                
+        except Exception as e:
+            logger.error(f"Error checking subscription status: {e}")
+            return {'subscribed': False}
+        finally:
+            if 'db' in locals():
+                db.close()
+    
+    def update_subscription(self, user_id: int, stripe_customer_id: str = None, stripe_subscription_id: str = None, plan_type: str = 'pro', status: str = 'active'):
+        """Update user subscription in PostgreSQL database"""
+        try:
+            db = next(get_db())
+            
+            from database_config import Subscription
+            
+            # Check if subscription already exists
+            subscription = db.query(Subscription).filter(Subscription.user_id == user_id).first()
+            
+            if subscription:
+                # Update existing subscription
+                if stripe_subscription_id:
+                    subscription.stripe_subscription_id = stripe_subscription_id
+                subscription.plan_type = plan_type
+                subscription.status = status
+                subscription.started_at = datetime.utcnow()
+                subscription.updated_at = datetime.utcnow()
+                logger.info(f"Updated existing subscription for user {user_id}: {plan_type}")
+            else:
+                # Create new subscription
+                subscription = Subscription(
+                    user_id=user_id,
+                    stripe_subscription_id=stripe_subscription_id,
+                    plan_type=plan_type,
+                    status=status,
+                    started_at=datetime.utcnow()
+                )
+                db.add(subscription)
+                logger.info(f"Created new subscription for user {user_id}: {plan_type}")
+            
+            db.commit()
+            db.close()
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error updating subscription: {e}")
+            if 'db' in locals():
+                db.rollback()
+                db.close()
+            return False
+    
     def create_reset_token(self, username: str) -> str:
         """Create a password reset token"""
         try:
@@ -289,13 +365,22 @@ class PostgreSQLAuthenticator:
                 st.session_state['user_last_name'] = user.last_name
                 st.session_state['user_roles'] = user.roles
                 st.session_state['name'] = f"{user.first_name} {user.last_name}".strip() or username
+                st.session_state['user_id'] = user.id
+            
+            # Load subscription status from database
+            subscription_status = self.get_user_subscription_status(user.id if user else None)
+            st.session_state['subscribed'] = subscription_status['subscribed']
+            st.session_state['subscription_cancelled'] = subscription_status.get('subscription_cancelled', False)
+            st.session_state['subscription_start_date'] = subscription_status.get('subscription_start_date', None)
             
             # Create database session
             from session_manager import session_manager
             session_data = {
                 'username': username,
                 'name': st.session_state.get('name', username),
-                'subscribed': st.session_state.get('subscribed', False),
+                'subscribed': st.session_state['subscribed'],
+                'subscription_cancelled': st.session_state['subscription_cancelled'],
+                'subscription_start_date': st.session_state['subscription_start_date'],
                 'email': user.email if user else ''
             }
             session_id = session_manager.create_session(username, session_data)

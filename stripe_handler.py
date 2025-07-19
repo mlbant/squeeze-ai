@@ -1,6 +1,7 @@
 import stripe
 import streamlit as st
 from database import UserDatabase
+from postgresql_auth import authenticator
 import os
 import dotenv
 dotenv.load_dotenv()
@@ -10,7 +11,8 @@ stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 
 class StripeHandler:
     def __init__(self):
-        self.db = UserDatabase()
+        self.db = UserDatabase()  # Keep for backwards compatibility
+        self.auth = authenticator  # Use PostgreSQL authenticator for subscriptions
         self.webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET', '')
     
     def _get_domain_url(self):
@@ -128,13 +130,14 @@ class StripeHandler:
             # Get subscription
             subscription = stripe.Subscription.retrieve(session.subscription)
             
-            # Update database
+            # Update database using PostgreSQL authenticator
             user_id = int(session.metadata.get('user_id'))
-            self.db.update_subscription(
+            self.auth.update_subscription(
                 user_id=user_id,
                 stripe_customer_id=session.customer,
                 stripe_subscription_id=subscription.id,
-                plan_type='pro'
+                plan_type='pro',
+                status='active'
             )
             
             return True
