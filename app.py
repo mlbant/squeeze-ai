@@ -44,31 +44,24 @@ def get_current_domain():
         return 'http://localhost:8501'
 
 def get_user_email():
-    """Get a valid email address for Stripe, with proper fallbacks"""
-    import re
-    
-    # Try to get email from session state
+    """Get the user's actual email address from their account"""
+    # First try to get email from session state
     email = st.session_state.get('email', '')
-    
-    # Validate email format
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    
-    if email and re.match(email_pattern, email):
+    if email:
         return email
     
-    # Try username if it looks like an email
+    # Get the user's actual email from the database
     username = st.session_state.get('username', '')
-    if username and re.match(email_pattern, username):
-        return username
-    
-    # If username exists but isn't email format, create email from it
     if username:
-        # Remove any special characters and create a valid email
-        clean_username = re.sub(r'[^a-zA-Z0-9]', '', username)
-        return f"{clean_username}@demo.squeeze-ai.com"
+        try:
+            user = authenticator.get_user_by_username(username)
+            if user and hasattr(user, 'email') and user.email:
+                return user.email
+        except:
+            pass
     
-    # Final fallback
-    return "user@demo.squeeze-ai.com"
+    # Final fallback if no email found
+    return "user@example.com"
 
 # Page config
 st.set_page_config(
@@ -304,6 +297,7 @@ def save_session(username):
         session_data = {
             'username': username,
             'name': username,  # Use username as name for now
+            'email': st.session_state.get('email', None),
             'subscribed': st.session_state.get('subscribed', False),
             'subscription_cancelled': st.session_state.get('subscription_cancelled', False),
             'subscription_start_date': st.session_state.get('subscription_start_date', None),
@@ -401,6 +395,10 @@ if session_data and isinstance(session_data, dict):
     # Restore subscription start date
     if 'subscription_start_date' not in st.session_state:
         st.session_state.subscription_start_date = session_data.get('subscription_start_date', None)
+    
+    # Restore user email
+    if 'email' not in st.session_state or not st.session_state.email:
+        st.session_state.email = session_data.get('email', None)
     
     # Restore scan and analysis results
     if 'last_scan_results' not in st.session_state:
@@ -574,6 +572,15 @@ if not authenticator.is_authenticated():
                         success = authenticator.login(user.username, login_password)
                 
                 if success:
+                    # Store user email in session state for Stripe
+                    user = authenticator.get_user_by_username(login_identifier)
+                    if not user and '@' in login_identifier:
+                        # If they logged in with email, get user by email
+                        user = authenticator.get_user_by_email(login_identifier)
+                    
+                    if user and hasattr(user, 'email'):
+                        st.session_state.email = user.email
+                    
                     st.success("Login successful!")
                     st.rerun()
                 else:
