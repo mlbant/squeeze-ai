@@ -71,75 +71,72 @@ class EmailService:
                 * {{ margin: 0; padding: 0; box-sizing: border-box; }}
                 body {{ 
                     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
-                    background-color: #ffffff !important; 
-                    color: #1f2937 !important; 
+                    background-color: #0e1117 !important; 
+                    color: #fafafa !important; 
                     line-height: 1.6;
                     -webkit-text-size-adjust: 100%;
                     -ms-text-size-adjust: 100%;
                 }}
                 .container {{ 
                     max-width: 600px; 
-                    margin: 0 auto; 
-                    padding: 20px; 
-                    background-color: #ffffff !important;
+                    margin: 40px auto; 
+                    background: #1f2937;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    border: 1px solid #374151;
+                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
                 }}
                 .header {{ 
-                    background: linear-gradient(135deg, #00D564 0%, #00E56F 100%);
-                    color: #ffffff !important; 
-                    padding: 40px 30px; 
+                    background: #00D564;
+                    color: #0e1117; 
+                    padding: 40px 40px 30px; 
                     text-align: center; 
-                    border-radius: 12px 12px 0 0;
-                    box-shadow: 0 4px 20px rgba(0, 213, 100, 0.2);
                 }}
                 .header h1 {{ 
                     font-size: 28px; 
                     font-weight: 700; 
                     margin-bottom: 8px; 
-                    color: #ffffff !important;
-                    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                    color: #0e1117;
                 }}
                 .content {{ 
-                    background-color: #ffffff !important; 
-                    padding: 40px 30px; 
-                    border-radius: 0 0 12px 12px;
-                    border: 1px solid #e5e7eb;
-                    border-top: none;
+                    background: #1f2937; 
+                    padding: 40px; 
                 }}
                 .content h2 {{ 
-                    font-size: 24px; 
-                    color: #1f2937 !important; 
+                    font-size: 18px; 
+                    color: #fafafa !important; 
                     margin-bottom: 20px; 
                     font-weight: 600;
                 }}
                 .content h3 {{ 
-                    font-size: 18px; 
-                    color: #374151 !important; 
+                    font-size: 16px; 
+                    color: #fafafa !important; 
                     margin: 25px 0 15px 0; 
                     font-weight: 600;
                 }}
                 .content p {{ 
                     font-size: 16px; 
-                    color: #4b5563 !important; 
+                    color: #9ca3af !important; 
                     margin-bottom: 20px; 
                     line-height: 1.7;
                 }}
                 .content ul {{ 
                     margin: 15px 0 25px 20px; 
-                    color: #4b5563 !important;
+                    color: #9ca3af !important;
                 }}
                 .content li {{ 
                     margin-bottom: 12px; 
                     font-size: 16px; 
-                    color: #4b5563 !important;
+                    color: #9ca3af !important;
                     line-height: 1.6;
                 }}
                 .content li strong {{ 
-                    color: #1f2937 !important; 
+                    color: #fafafa !important; 
                     font-weight: 600;
                 }}
                 .button {{ 
-                    background: linear-gradient(135deg, #00D564 0%, #00E56F 100%);
-                    color: #ffffff !important; 
+                    background: #00D564;
+                    color: #0e1117 !important; 
                     padding: 16px 32px; 
                     text-decoration: none; 
                     border-radius: 8px; 
@@ -151,26 +148,26 @@ class EmailService:
                     transition: all 0.3s ease;
                 }}
                 .button:hover {{ 
-                    background: linear-gradient(135deg, #00E56F 0%, #00F57A 100%);
+                    background: #00E56F;
                     transform: translateY(-2px);
                     box-shadow: 0 6px 20px rgba(0, 213, 100, 0.4);
                 }}
                 .footer {{ 
-                    text-align: center; 
-                    margin-top: 40px; 
-                    padding-top: 30px;
-                    border-top: 1px solid #e5e7eb;
+                    background: #0e1117;
+                    padding: 30px 40px;
+                    text-align: center;
+                    border-top: 1px solid #374151;
                     color: #9ca3af !important; 
                     font-size: 14px; 
                     line-height: 1.5;
                 }}
                 .footer p {{ 
-                    margin: 8px 0; 
+                    margin: 5px 0; 
                     color: #9ca3af !important;
                 }}
                 .emoji {{ font-size: 20px; margin-right: 8px; }}
                 .feature-list {{ 
-                    background-color: #f9fafb; 
+                    background-color: #374151; 
                     padding: 20px; 
                     border-radius: 8px; 
                     margin: 20px 0;
