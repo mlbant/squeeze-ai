@@ -503,8 +503,16 @@ if 'reset_token' in query_params:
     # Validate token exists in database
     try:
         from database_config import get_db, ResetToken
+        from datetime import datetime
         db = next(get_db())
         token_exists = db.query(ResetToken).filter(ResetToken.token == reset_token).first()
+        
+        if token_exists:
+            current_time = datetime.utcnow()
+            token_valid = not token_exists.used and token_exists.expires_at > current_time
+        else:
+            token_valid = False
+            
         db.close()
     except Exception as e:
         st.error("Database connection error. Please try again later.")
@@ -522,20 +530,40 @@ if 'reset_token' in query_params:
             if new_password and confirm_password:
                 if new_password == confirm_password:
                     if len(new_password) >= 6:
-                        # Try to reset password using the authenticator
-                        success = authenticator.reset_password(reset_token, new_password)
-                        
-                        if success:
-                            st.success("✅ Password reset successful!")
-                            st.info("You can now log in with your new password.")
-                            
-                            # Add back to homepage button
-                            col1, col2, col3 = st.columns([1, 1, 1])
-                            with col2:
-                                if st.button("🏠 Back to Homepage", type="primary", use_container_width=True):
-                                    # Clear the reset token from URL and redirect to homepage
-                                    st.query_params.clear()
-                                    st.rerun()
+                        # Use direct password reset if token is valid
+                        if token_valid and token_exists:
+                            try:
+                                from database_config import get_db, User
+                                from datetime import datetime
+                                
+                                db = next(get_db())
+                                user = db.query(User).filter(User.username == token_exists.username).first()
+                                
+                                if user:
+                                    # Update password using the authenticator's hash method
+                                    user.password_hash = authenticator.hash_password(new_password)
+                                    user.updated_at = datetime.utcnow()
+                                    
+                                    # Mark token as used
+                                    token_exists.used = True
+                                    
+                                    db.commit()
+                                    db.close()
+                                    
+                                    st.success("✅ Password reset successful!")
+                                    st.info("You can now log in with your new password.")
+                                    
+                                    # Add back to homepage button
+                                    col1, col2, col3 = st.columns([1, 1, 1])
+                                    with col2:
+                                        if st.button("🏠 Back to Homepage", type="primary", use_container_width=True):
+                                            # Clear the reset token from URL and redirect to homepage
+                                            st.query_params.clear()
+                                            st.rerun()
+                                else:
+                                    st.error("User not found.")
+                            except Exception as e:
+                                st.error(f"Password reset failed: {str(e)}")
                         else:
                             st.error("❌ Password reset failed. The token may be expired or invalid.")
                             st.info("Please request a new password reset link if needed.")
